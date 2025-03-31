@@ -177,7 +177,7 @@ class DataEntryWindow:
         close_button.grid(row=0, column=2, padx=5, pady=5)
 
         # Define columns for the table
-        columns = database_fields
+        columns = database_fields_load
 
         self.tree = ttk.Treeview(self.data_display_frame, columns=columns, show="headings", height=5)
         # Create a style for the treeview heading with light cyan background
@@ -214,31 +214,53 @@ class DataEntryWindow:
         self.data_entry_window.grab_set()  # Make the window modal
 
     def load_last_entries(self):
-        """Loads the last 5 entries from the Excel sheet and displays them in the Treeview table."""
-        file_name = os.path.join(os.environ["USERPROFILE"], "OneDrive - FORVIA", "Inward_logistic_master",
-                                 "Inward Material Register.xlsx")
+        """Loads the last 5 entries from the SQL database and displays them in the Treeview table."""
+        # Database connection configuration
+        serverdb_config = {
+            'user': 'forvia',
+            'password': 'password@123',
+            'host': '10.170.140.106',
+            'port': 3306,
+            'database': 'logistic'
+        }
 
-        # Load workbook and select the sheet
-        wb = load_workbook(file_name, data_only=True)
-        ws = wb["Inward Entry"]
-        self.tree.update_idletasks()
-        # Get last 5 rows (excluding header)
-        last_five_entries = []
-        for row in ws.iter_rows(min_row=max(2, ws.max_row - MAX_ENTRIES_FOR_DISPLAY), max_row=ws.max_row, values_only=True):
-            last_five_entries.append(row)
+        try:
+            # Establish connection
+            conn = mysql.connector.connect(**serverdb_config)
+            cursor = conn.cursor()
 
-        print("entries",last_five_entries)
-        # Clear existing data in the treeview
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+            # Fetch last 5 entries from the database
+            cursor.execute("""
+                SELECT * FROM inward_logistic ORDER BY id DESC LIMIT 5
+            """)
+            last_five_entries = cursor.fetchall()
 
-        # Insert last 5 entries into the treeview
-        for entry in last_five_entries:
-            self.tree.insert("", tk.END, values=list(entry))
-            print(entry)
+            print("entries", last_five_entries)
 
-        # Update the Treeview
-        self.tree.update_idletasks()
+            # Clear existing data in the treeview
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+            # Insert last 5 entries into the treeview
+            for entry in last_five_entries:
+                self.tree.insert("", tk.END, values=list(entry))
+                print(entry)
+
+            for col in self.tree["columns"]:
+                self.tree.column(col, anchor="center")  # Center-align column data
+
+            # Update the Treeview
+            self.tree.update_idletasks()
+
+        except mysql.connector.Error as err:
+            print(f"Database Error: {err}")
+
+        finally:
+            # Close the database connection
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
     def save_data(self):
         """
@@ -246,7 +268,7 @@ class DataEntryWindow:
         """
         # Extract and convert all data to string
         data = [str(entry.get()) if isinstance(entry, (tk.Entry, tk.StringVar)) else
-                str(entry.get_date().strftime('%Y-%m-%d')) if isinstance(entry, DateEntry) else
+                entry.get_date().strftime('%d-%m-%Y') if isinstance(entry, DateEntry) else
                 str(entry.get('1.0', 'end-1c')) for entry in self.entry_fields]
 
         # Validate that the quantity (data[13]) is numeric
@@ -257,6 +279,16 @@ class DataEntryWindow:
         # Validate that the invoice number (data[6]) is not empty
         if data[6].strip() == "":
             messagebox.showerror("Error", "Invoice cannot be blank", parent=self.data_entry_window)
+            return
+
+            # Convert Date and Time fields to correct format
+        try:
+            data[3] = re.sub(r'[^0-9-]', '', data[3])  # Ensure date format is correct
+            data[9] = re.sub(r'[^0-9-]', '', data[9])  # Ensure return date is correct
+            data[4] = data[4] if ":" in data[4] else "00:00:00"  # Ensure correct time format
+            data[10] = data[10] if ":" in data[10] else "00:00:00"
+        except IndexError:
+            messagebox.showerror("Error", "Invalid Date or Time format", parent=self.data_entry_window)
             return
 
         # Database connection configuration
@@ -319,13 +351,13 @@ class DataEntryWindow:
         if not selected_item:
             return  # No item selected
 
-        record = self.tree.item(selected_item, "values")
+        record = self.tree.item(selected_item, "values")[1:]
         if not record:
             return
         width, height = pyautogui.size()
         self.view_edit_window = tk.Toplevel(self.data_entry_window)
         self.view_edit_window.title("View/Edit Record")
-        self.view_edit_window.geometry(f'1050x500+{int(width / 3.2)}+{int(height / 4)}')
+        self.view_edit_window.geometry(f'1050x550+{int(width / 3.2)}+{int(height / 3.5)}')
         self.view_edit_window.configure(background="wheat")
 
         heading_frame = tk.Frame(self.view_edit_window, bg="wheat")

@@ -78,6 +78,12 @@ database_fields = [
             "BOE No", "Return Date", "Return Time","Name of the Supplier", "Material Description", "Qty", "Department", "Project_Name", "TPL_Name","Vehicle No",
             "Received Name", "Authorized Sign", "Security Sign", "Remark","TPL Remarks"
         ]
+
+database_fields_load = [
+            "S.No","Inward No", "Return Type", "Benefit Type", "Date", "Time", "Gate Entry No", "Invoice No", "PO No",
+            "BOE No", "Return Date", "Return Time","Name of the Supplier", "Material Description", "Qty", "Department", "Project_Name", "TPL_Name","Vehicle No",
+            "Received Name", "Authorized Sign", "Security Sign", "Remark","TPL Remarks"
+        ]
 database_columns = [
     "Inward_No INT",
     "Return_Type VARCHAR(255)",
