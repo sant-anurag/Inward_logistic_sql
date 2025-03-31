@@ -111,9 +111,9 @@ database_columns = [
 ]
 
 serverdb_config = {
-            'user': 'forvia',
-            'password': 'password@123',
-            'host': '10.170.140.106',
-            'port': 3306
-
-        }
+    'user': 'forvia',
+    'password': 'password@123',
+    'host': '10.228.140.19',
+    'port': 3306,
+    'database': 'logistic'
+}

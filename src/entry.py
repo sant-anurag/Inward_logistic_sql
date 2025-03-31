@@ -216,17 +216,11 @@ class DataEntryWindow:
     def load_last_entries(self):
         """Loads the last 5 entries from the SQL database and displays them in the Treeview table."""
         # Database connection configuration
-        serverdb_config = {
-            'user': 'forvia',
-            'password': 'password@123',
-            'host': '10.170.140.106',
-            'port': 3306,
-            'database': 'logistic'
-        }
+        db_config = serverdb_config
 
         try:
             # Establish connection
-            conn = mysql.connector.connect(**serverdb_config)
+            conn = mysql.connector.connect(**db_config)
             cursor = conn.cursor()
 
             # Fetch last 5 entries from the database
@@ -292,13 +286,7 @@ class DataEntryWindow:
             return
 
         # Database connection configuration
-        serverdb_config = {
-            'user': 'forvia',
-            'password': 'password@123',
-            'host': '10.170.140.106',
-            'port': 3306,
-            'database': 'logistic'
-        }
+
 
         try:
             # Establish connection
