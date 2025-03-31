@@ -1,5 +1,6 @@
 # Importing tkinter module with alias name "tk"
 import tkinter as tk
+import mysql.connector
 import ctypes
 import subprocess
 # Importing specific classes and functions from tkinter module
@@ -70,10 +71,43 @@ MAX_ENTRIES_FOR_DISPLAY = 6
 
 database_columns = ("Inward No", "Return Type", "Benefit Type", "Date", "Time", "Gate Entry No",
                    "Invoice No", "PO No", "BOE No", "Return Date", "Return Time","Supplier", "Material", "Qty", "Department",
-                   "Project", "Vehicle", "Received", "Authorized", "Security", "Remark")
+                   "Project", "TPL Name","Vehicle", "Received", "Authorized", "Security", "Remark", "TPL Remarks")
 
 database_fields = [
             "Inward No", "Return Type", "Benefit Type", "Date", "Time", "Gate Entry No", "Invoice No", "PO No",
-            "BOE No", "Return Date", "Return Time","Name of the Supplier", "Material Description", "Qty", "Department", "Project_Name", "Vehicle No",
-            "Received Name", "Authorized Sign", "Security Sign", "Remark"
+            "BOE No", "Return Date", "Return Time","Name of the Supplier", "Material Description", "Qty", "Department", "Project_Name", "TPL_Name","Vehicle No",
+            "Received Name", "Authorized Sign", "Security Sign", "Remark","TPL Remarks"
         ]
+database_columns = [
+    "Inward_No INT",
+    "Return_Type VARCHAR(255)",
+    "Benefit_Type VARCHAR(255)",
+    "Date DATE",
+    "Time TIME",
+    "Gate_Entry_No VARCHAR(255)",
+    "Invoice_No VARCHAR(255)",
+    "PO_No VARCHAR(255)",
+    "BOE_No VARCHAR(255)",
+    "Return_Date DATE",
+    "Return_Time TIME",
+    "Supplier VARCHAR(255)",
+    "Material VARCHAR(255)",
+    "Qty INT",
+    "Department VARCHAR(255)",
+    "Project VARCHAR(255)",
+    "TPL_Name VARCHAR(255)",
+    "Vehicle VARCHAR(255)",
+    "Received VARCHAR(255)",
+    "Authorized VARCHAR(255)",
+    "Security VARCHAR(255)",
+    "Remark TEXT",
+    "TPL_Remarks TEXT"
+]
+
+serverdb_config = {
+            'user': 'forvia',
+            'password': 'password@123',
+            'host': '10.170.140.106',
+            'port': 3306
+
+        }

@@ -31,14 +31,14 @@ class DataEntryWindow:
         self.data_entry_window.title("Inward Material Entry")
 
         # Set window size and position it near the center of the screen
-        self.data_entry_window.geometry(f'975x650+{int(width / 3.2)}+{int(height / 4)}')
+        self.data_entry_window.geometry(f'975x650+{int(width / 3.2)}+{int(height / 3.5)}')
         self.data_entry_window.configure(background='wheat')
         self.data_entry_window.resizable(width=True, height=True)  # Disable window resizing
 
 
         # Create main frames for UI organization
         self.heading_frame = tk.Frame(self.data_entry_window, bg='wheat')
-        self.data_entry_frame = tk.Frame(self.data_entry_window, width=600, height=400, bd=4, relief='ridge',
+        self.data_entry_frame = tk.Frame(self.data_entry_window, width=600, height=450, bd=4, relief='ridge',
                                          bg='wheat')
         self.button_frame = tk.Frame(self.data_entry_window, width=200, height=100, bd=4, relief='ridge', bg='wheat')
         self.data_display_frame = tk.Frame(self.data_entry_window, width=600, height=200, bd=4, relief='ridge',
@@ -79,9 +79,9 @@ class DataEntryWindow:
                              font=('ariel narrow', 10), bg='wheat')
 
             # Position labels in two columns for better UI layout
-            if i < len(fields) // 2 or field == "Remark":
-                if field == "Remark":
-                    label.grid(row=i - len(fields) // 2, column=0, padx=5, pady=5)
+            if i < len(fields) // 2 or field == "TPL Remarks":
+                if field == "TPL Remarks":
+                    label.grid(row=len(fields) // 2 , column=0, padx=5, pady=5)
                 else:
                     label.grid(row=i, column=0, padx=5, pady=5)
             else:
@@ -134,10 +134,17 @@ class DataEntryWindow:
                 return_time_entry.configure(state="disabled")  # Initially disabled
                 self.entry_fields.append(return_time_entry)
 
-            elif field == "Remark":
-                remark_entry = tk.Text(self.data_entry_frame, width=107, height=3, font=('ariel narrow', 10),
+            elif field == "TPL Remarks":
+                tplremark_entry = tk.Text(self.data_entry_frame, width=40, height=3, font=('ariel narrow', 10),
                                        bg='light yellow')
-                remark_entry.grid(row=i - len(fields) // 2, column=1, rowspan=3, columnspan=3, padx=5, pady=5)
+                tplremark_entry.grid(row=i - len(fields) // 2, column=1, rowspan=3, padx=5, pady=5)
+                self.entry_fields.append(tplremark_entry)
+
+            elif field == "Remark":
+                remark_entry = tk.Text(self.data_entry_frame, width=40, height=5, font=('ariel narrow', 10),
+                                       bg='light yellow')
+                remark_entry.grid(row=i if i < len(fields) // 2 else i - len(fields) // 2,
+                           column=1 if i < len(fields) // 2 else 3,  rowspan=3,padx=5, pady=5)
                 self.entry_fields.append(remark_entry)
 
             elif field == "Project_Name":
@@ -170,7 +177,7 @@ class DataEntryWindow:
         close_button.grid(row=0, column=2, padx=5, pady=5)
 
         # Define columns for the table
-        columns = database_columns
+        columns = database_fields
 
         self.tree = ttk.Treeview(self.data_display_frame, columns=columns, show="headings", height=5)
         # Create a style for the treeview heading with light cyan background
@@ -235,15 +242,14 @@ class DataEntryWindow:
 
     def save_data(self):
         """
-        Saves the data entered in the form to an Excel sheet with proper formatting.
+        Saves the data entered in the form to an SQL database.
         """
-
         # Extract and convert all data to string
         data = [str(entry.get()) if isinstance(entry, (tk.Entry, tk.StringVar)) else
-                str(entry.get_date().strftime('%d/%m/%Y')) if isinstance(entry, DateEntry) else
+                str(entry.get_date().strftime('%Y-%m-%d')) if isinstance(entry, DateEntry) else
                 str(entry.get('1.0', 'end-1c')) for entry in self.entry_fields]
 
-        # Validate that the quantity (data[11]) is numeric
+        # Validate that the quantity (data[13]) is numeric
         if not re.match(r'^[0-9]+$', data[13]):
             messagebox.showerror("Error", "Qty must be numeric", parent=self.data_entry_window)
             return
@@ -253,45 +259,45 @@ class DataEntryWindow:
             messagebox.showerror("Error", "Invoice cannot be blank", parent=self.data_entry_window)
             return
 
-        # Define the file path for the Excel sheet where data will be stored
-        file_name = os.path.join(os.environ["USERPROFILE"], "OneDrive - FORVIA", "Inward_logistic_master",
-                                 "Inward Material Register.xlsx")
+        # Database connection configuration
+        serverdb_config = {
+            'user': 'forvia',
+            'password': 'password@123',
+            'host': '10.170.140.106',
+            'port': 3306,
+            'database': 'logistic'
+        }
 
-        # Load the existing Excel workbook and select the relevant sheet
-        wb = load_workbook(file_name)
-        ws = wb["Inward Entry"]
+        try:
+            # Establish connection
+            conn = mysql.connector.connect(**serverdb_config)
+            cursor = conn.cursor()
 
-        # Append the new data to the sheet
-        ws.append(data)
+            # Define SQL query to insert data
+            sql_query = """
+                INSERT INTO inward_logistic (
+                    Inward_No, Return_Type, Benefit_Type, Date, Time, Gate_Entry_No, Invoice_No, PO_No, BOE_No,
+                    Return_Date, Return_Time, Supplier, Material, Qty, Department, Project, TPL_Name, Vehicle,
+                    Received, Authorized, Security, Remark, TPL_Remarks
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
 
-        # Apply formatting after appending data
-        last_row = ws.max_row  # Get the last row number after appending
+            # Execute query
+            cursor.execute(sql_query, data)
+            conn.commit()
 
-        # Define normal cell styling
-        normal_font = Font(name="Bookman Old Style", size=11)  # Regular font
-        normal_alignment = Alignment(vertical="center", wrap_text=True)  # Wrap if long text
+            # Notify the user that the data has been saved successfully
+            messagebox.showinfo("Success", "Data saved successfully", parent=self.data_entry_window)
 
-        # Apply formatting to the newly added row
-        for col_num, cell in enumerate(ws[last_row], start=1):
-            col_letter = get_column_letter(col_num)
-            cell.font = normal_font
-            cell.alignment = normal_alignment
+        except mysql.connector.Error as err:
+            messagebox.showerror("Database Error", f"Error: {err}", parent=self.data_entry_window)
 
-            # Adjust column width based on content length
-            max_length = len(str(cell.value)) if cell.value else 10  # Avoid zero width
-            ws.column_dimensions[col_letter].width = min(max(ws.column_dimensions[col_letter].width, max_length + 5),
-                                                         50)
-
-            # Enable text wrapping if content length is more than 50 characters
-            if len(str(cell.value)) > 50:
-                cell.alignment = Alignment(vertical="center", wrap_text=True)
-
-        # Save the updated workbook
-        wb.save(file_name)
-        self.load_last_entries()
-
-        # Notify the user that the data has been saved successfully
-        messagebox.showinfo("Success", "Data saved successfully", parent=self.data_entry_window)
+        finally:
+            # Close the database connection
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
     def reset_fields(self):
         """

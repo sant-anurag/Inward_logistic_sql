@@ -11,3 +11,4 @@ pip install xlsxwriter
 pip install pillow
 pip install python-docx
 pip install cryptography
+pip install mysql-connector-python

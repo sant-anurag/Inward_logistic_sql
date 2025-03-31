@@ -28,119 +28,39 @@ class Logistics:
 
     def initialize_database(self):
         """
-        Function to initialize the database (Excel file) for storing inward logistics data.
-
-        This function ensures that a specific folder structure and an Excel workbook exist.
-        If the Excel file does not exist, it creates a new one with predefined sheets and formatting.
-
-        The Excel file stores inward material details, including supplier information,
-        material description, project details, and signatures.
-
-        Steps:
-        1. Define the folder path where the file will be stored (OneDrive location).
-        2. Create the folder if it does not already exist.
-        3. Check if the Excel file exists.
-        4. If the file exists, print a message and exit.
-        5. If the file does not exist, create a new Excel workbook.
-        6. Add a sheet with appropriate column headers.
-        7. Apply formatting to the headers (font, color, border, alignment).
-        8. Save the workbook.
-
-        Returns:
-        None
+        Function to initialize the MySQL database for storing inward logistics data.
+        This function ensures that a specific database and table exist.
+        If the table does not exist, it creates a new one with predefined columns.
         """
 
-        # Construct the full path to the OneDrive directory where the database will be stored.
-        # This ensures that the file is saved in a centralized location.
-        onedrive_path = os.path.join(os.environ["USERPROFILE"], "OneDrive - FORVIA")
-        folder_path = os.path.join(onedrive_path, "Inward_logistic_master")
-        file_name = os.path.join(folder_path, "Inward Material Register.xlsx")
+        # Database connection details
+        db_config = serverdb_config
 
-        # Print the file path for debugging purposes.
-        print(file_name)
+        # Define the columns for the table
+        columns = database_columns
 
-        # Create the target directory if it does not exist.
-        # The `exist_ok=True` parameter prevents errors if the directory already exists.
-        os.makedirs(folder_path, exist_ok=True)
+        # Create the database connection
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
 
-        # Check if the Excel file already exists to avoid overwriting existing data.
-        if os.path.isfile(file_name):
-            print("File already exists")  # Log message indicating no new file creation.
-        else:
-            # Create a new Excel workbook (spreadsheet).
-            workbook = Workbook()
+        # Create the database if it does not exist
+        cursor.execute("CREATE DATABASE IF NOT EXISTS logistic")
 
-            # The first sheet in the workbook is active by default.
-            # Rename this sheet to "Inward Entry" for clarity.
-            sheet1 = workbook.active
-            sheet1.title = "Inward Entry"
+        # Use the created database
+        cursor.execute("USE logistic")
 
-            # Define the column headers for the "Inward Entry" sheet.
-            columns = database_columns
-
-            # Define formatting for the header row:
-            # - `header_font`: Sets font style, size, and boldness.
-            # - `header_fill`: Sets a background fill color (light blue).
-            header_font = Font(name='Bookman Old Style', size=11, bold=True)
-            header_fill = PatternFill(start_color="87CEEB", end_color="87CEEB", fill_type="solid")
-
-            # Define border styles:
-            # - `thin_border`: Applies a thin border to normal cells.
-            # - `thick_border`: Applies a thicker border for the header row.
-            thin_border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin')
+        # Create the table if it does not exist
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS inward_logistic (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                {', '.join(columns)}
             )
-            thick_border = Border(
-                left=Side(style='thick'),
-                right=Side(style='thick'),
-                top=Side(style='thick'),
-                bottom=Side(style='thick')
-            )
+        """)
 
-            # Function to set up a sheet by applying headers, formatting, and alignment.
-            def setup_sheet(sheet):
-                """
-                Applies styling, formatting, and column width settings to a given worksheet.
+        # Close the database connection
+        cursor.close()
+        conn.close()
 
-                Parameters:
-                sheet (Worksheet): The worksheet to apply formatting to.
-
-                Returns:
-                None
-                """
-
-                # Append column headers to the first row of the sheet.
-                sheet.append(columns)
-
-                # Define column widths corresponding to each column header.
-                column_widths = [12, 12,12, 10, 8, 15, 12, 10, 10,8,8, 20, 25, 8, 12, 15, 12, 15, 15, 15, 20]
-
-                # Apply formatting to header row (first row).
-                for i, cell in enumerate(sheet[1], start=1):
-                    cell.font = header_font  # Set bold font style.
-                    cell.fill = header_fill  # Apply background color.
-                    cell.alignment = Alignment(wrap_text=True, horizontal='center', vertical='center')  # Center align text.
-                    sheet.column_dimensions[cell.column_letter].width = column_widths[i - 1]  # Adjust column width.
-                    cell.border = thin_border  # Apply thin border.
-
-                # Apply thin border to all cells in the sheet.
-                for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=len(columns)):
-                    for cell in row:
-                        cell.border = thin_border  # Apply thin border to all cells.
-
-                # Apply thick border to the header row for better visibility.
-                for cell in sheet[1]:
-                    cell.border = thick_border  # Apply thick border to header row.
-
-            # Apply formatting setup to the "Inward Entry" sheet.
-            setup_sheet(sheet1)
-
-            # Save the workbook to the specified file path.
-            workbook.save(filename=file_name)
-            print("File created successfully")  # Log message indicating successful file creation.
 
     def data_entry_window(self,master):
         obj_dataEntry = DataEntryWindow(master)
