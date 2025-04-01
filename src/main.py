@@ -27,6 +27,7 @@ class Logistics:
         """
         self.initialize_user_database()
         self.initialize_logistic_database()
+        self.initialize_projects_table()
         self.main_window(master)
 
     def initialize_logistic_database(self):
@@ -143,6 +144,54 @@ class Logistics:
             root = tk.Tk()
             root.withdraw()  # Hides the root window
             if messagebox.showerror("Connection Error", "Could not connect to server"):
+                root.destroy()
+                sys.exit(1)  # Exit the application with a non-zero status code
+            print(f"Error: {err}")
+
+    def initialize_projects_table(self):
+        """
+        Function to initialize the projects table within the logistic database.
+
+        This function ensures that a specific table exists within the logistic database.
+        If the table does not exist, it creates a new one with predefined columns.
+        """
+
+        # Define the database connection details
+        db_config = serverdb_config
+
+        # Define the columns for the projects table
+        columns = [
+            "project_name VARCHAR(100)",
+            "tpl_name VARCHAR(50)"
+        ]
+
+        try:
+            # Create a connection to the MySQL database
+            conn = mysql.connector.connect(**db_config)
+            cursor = conn.cursor()
+
+            # Use the existing logistic database
+            cursor.execute("USE logistic")
+
+            # Create the projects table if it does not exist
+            cursor.execute(f""" 
+                CREATE TABLE IF NOT EXISTS projects (
+                    SNo INT AUTO_INCREMENT PRIMARY KEY,
+                    {', '.join(columns)}
+                )
+            """)
+
+            # Close the cursor and connection objects
+            cursor.close()
+            conn.close()
+
+        except mysql.connector.Error as err:
+            # Show an error messagebox if the connection to the server fails
+            root = tk.Tk()
+            root.withdraw()  # Hides the root window
+            response = messagebox.askokcancel("Connection Error",
+                                              "Could not connect to server. Application will close.")
+            if response:
                 root.destroy()
                 sys.exit(1)  # Exit the application with a non-zero status code
             print(f"Error: {err}")
