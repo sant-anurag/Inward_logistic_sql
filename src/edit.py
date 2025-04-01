@@ -347,7 +347,7 @@ class EditWindow:
             connection.close()
 
             # Update the Treeview and show success message
-            self.tree.item(selected_item, values=updated_record)
+            self.tree.item(selected_item, values=(serial_no, *updated_record))
             messagebox.showinfo("Success", "Record edited successfully and saved !!!", parent=self.view_edit_window)
             #self.load_last_entries()
 

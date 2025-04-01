@@ -262,7 +262,7 @@ class DataEntryWindow:
         """
         # Extract and convert all data to string
         data = [str(entry.get()) if isinstance(entry, (tk.Entry, tk.StringVar)) else
-                entry.get_date().strftime('%d-%m-%Y') if isinstance(entry, DateEntry) else
+                entry.get_date().strftime('%m/%d/%y') if isinstance(entry, DateEntry) else
                 str(entry.get('1.0', 'end-1c')) for entry in self.entry_fields]
 
         # Validate that the quantity (data[13]) is numeric
@@ -275,19 +275,21 @@ class DataEntryWindow:
             messagebox.showerror("Error", "Invoice cannot be blank", parent=self.data_entry_window)
             return
 
-            # Convert Date and Time fields to correct format
+        print("Date :", data[3], " ", data[4], "Return Date :", data[9], " ", data[10])
+
+        # Convert Date and Time fields to correct format
         try:
-            data[3] = re.sub(r'[^0-9-]', '', data[3])  # Ensure date format is correct
-            data[9] = re.sub(r'[^0-9-]', '', data[9])  # Ensure return date is correct
+            data[3] = datetime.strptime(data[3], '%m/%d/%y').strftime('%Y-%m-%d')  # Ensure date format is correct
+            data[9] = datetime.strptime(data[9], '%m/%d/%y').strftime('%Y-%m-%d')  # Ensure return date is correct
             data[4] = data[4] if ":" in data[4] else "00:00:00"  # Ensure correct time format
             data[10] = data[10] if ":" in data[10] else "00:00:00"
-        except IndexError:
+            print("After formatting ---> Date :", data[3], " ", data[4], "Return Date :", data[9], " ", data[10])
+        except ValueError as e:
+            print(f"Error: {e}")
             messagebox.showerror("Error", "Invalid Date or Time format", parent=self.data_entry_window)
             return
 
         # Database connection configuration
-
-
         try:
             # Establish connection
             conn = mysql.connector.connect(**serverdb_config)
