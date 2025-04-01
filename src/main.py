@@ -1,6 +1,7 @@
 from search import *
 from settings import *
 from entry import *
+from edit import *
 
 class Logistics:
     """
@@ -71,6 +72,9 @@ class Logistics:
     def settings_window(self,master):
         obj_settings = SettingsWindow(master)
 
+    def edit_window(self,master):
+        obj_edit = EditWindow(master)
+
     def validate_numeric_input(self,input_str):
         """
         Function to validate whether the given input string is numeric.
@@ -99,15 +103,6 @@ class Logistics:
             return False  # Return False, rejecting the input
 
     def download_inward_register(self, filetype):
-        # Database configuration
-        serverdb_config = {
-            'user': 'forvia',
-            'password': 'password@123',
-            'host': '10.170.140.110',
-            'port': 3306,
-            'database': 'logistic'
-        }
-
         # Define the file name
         if filetype == "master":
             file_name = "Inward Material Register.xlsx"
@@ -214,7 +209,7 @@ class Logistics:
         #master.destroy()  # Close the main screen
         self.main_window(master)  # Reopen login window
 
-    def designMainScreen(self,master, username, category):
+    def designMainScreen(self, master, username, category):
         """
         Function to design the main screen of the Inward Logistic Handling application.
 
@@ -254,19 +249,24 @@ class Logistics:
         btn_createPaper = Button(master, text="Search", fg="Black", command=result_createPaper,
                                  font=XL_FONT, width=20, state=NORMAL, bg='RosyBrown1')
 
-        # Create and configure the "Download" button
-        # This button allows users to download the inward register
-        result_downloadmaster =  partial(self.download_inward_register,"master")
-        btn_usrCtrl = Button(master, text="Download", fg="Black", command=result_downloadmaster,
-                             font=XL_FONT, width=20, state=NORMAL, bg='RosyBrown1')
-
-        # Initialize btn_settings as None; only used if the user is an Admin
+        # Initialize btn_edit and btn_settings as None; only used if the user is an Admin
+        btn_edit = None
         btn_settings = None
 
         if category == "Admin":
+            # Create and configure the "Edit" button for Admin users only
+            btn_edit = Button(master, text="Edit", fg="Black", command=lambda: self.edit_window(master),
+                              font=XL_FONT, width=20, state=NORMAL, bg='RosyBrown1')
+
             # Create and configure the "Settings" button for Admin users only
-            btn_settings = Button(master, text="Settings", fg="Black", command=lambda:self.settings_window(master),
+            btn_settings = Button(master, text="Settings", fg="Black", command=lambda: self.settings_window(master),
                                   font=XL_FONT, width=20, state=NORMAL, bg='RosyBrown1')
+
+        # Create and configure the "Download" button
+        # This button allows users to download the inward register
+        result_downloadmaster = partial(self.download_inward_register, "master")
+        btn_usrCtrl = Button(master, text="Download", fg="Black", command=result_downloadmaster,
+                             font=XL_FONT, width=20, state=NORMAL, bg='RosyBrown1')
 
         # Create and configure the "Logout" button
         # This button calls the logout function and hides the main window
@@ -281,16 +281,17 @@ class Logistics:
         # Position the buttons on the screen using absolute placement
         btn_addQues.place(x=65, y=220)  # Position "Inward Entry" button
         btn_createPaper.place(x=65, y=275)  # Position "Search" button
-        btn_usrCtrl.place(x=65, y=330)  # Position "Download" button
 
-        if btn_settings:  # If the user is an Admin, include the "Settings" button
-            btn_settings.place(x=65, y=385)  # Position "Settings" below "Download"
-            btn_logout.place(x=65, y=440)  # Position "Logout" below "Settings"
-            btn_exit.place(x=65, y=495)  # Position "Exit" below "Logout"
-
-        else:  # If the user is not an Admin, exclude "Settings" and adjust button placement
-            btn_logout.place(x=65, y=385)  # Position "Logout" below "Download"
-            btn_exit.place(x=65, y=440)  # Position "Exit" below "Logout"
+        if btn_edit:  # If the user is an Admin, include the "Edit" button
+            btn_edit.place(x=65, y=330)  # Position "Edit" button
+            btn_usrCtrl.place(x=65, y=385)  # Position "Download" button
+            btn_settings.place(x=65, y=440)  # Position "Settings" button
+            btn_logout.place(x=65, y=495)  # Position "Logout" button
+            btn_exit.place(x=65, y=550)  # Position "Exit" button
+        else:  # If the user is not an Admin, exclude "Edit" and "Settings" and adjust button placement
+            btn_usrCtrl.place(x=65, y=330)  # Position "Download" button
+            btn_logout.place(x=65, y=385)  # Position "Logout" button
+            btn_exit.place(x=65, y=440)  # Position "Exit" button
 
         # Bind the 'Escape' key to trigger the Exit button
         master.bind('<Escape>', lambda event=None: btn_exit.invoke())
