@@ -95,33 +95,49 @@ class Logistics:
         ]
         try:
             # Create a connection to the MySQL database
-            # We use the mysql.connector library to connect to the database
-            # The ** operator is used to unpack the db_config dictionary into keyword arguments
             conn = mysql.connector.connect(**db_config)
-
-            # Create a cursor object to execute SQL queries
-            # The cursor object allows us to execute SQL queries and retrieve results
             cursor = conn.cursor()
 
             # Use the existing logistic database
-            # We execute a SQL query to switch to the logistic database
             cursor.execute("USE logistic")
 
             # Create the login_users table if it does not exist
-            # We execute a SQL query to create the table with the specified columns
-            # The CREATE TABLE IF NOT EXISTS statement ensures that the table is created only if it does not exist
-            # The sno column is an auto-incrementing primary key
             cursor.execute(f""" 
                 CREATE TABLE IF NOT EXISTS login_users (
-                    sno INT AUTO_INCREMENT PRIMARY KEY,  # Auto-incrementing primary key
-                    {', '.join(columns)}  # Join the columns list into a comma-separated string
+                    sno INT AUTO_INCREMENT PRIMARY KEY,
+                    {', '.join(columns)}
                 )
             """)
 
+            # Check if the login_users table is empty
+            cursor.execute("SELECT * FROM login_users")
+            rows = cursor.fetchall()
+
+            if not rows:
+                # Create a default admin user if the table is empty
+                current_month = datetime.now().month
+                current_year = datetime.now().year
+                admin_password = f"password@{current_month}{current_year}"
+                cursor.execute("INSERT INTO login_users (user_name, password, category) VALUES (%s, %s, %s)",
+                               ("Admin", admin_password, "Admin"))
+                conn.commit()
+            else:
+                # Check if the admin user exists and update the password if necessary
+                cursor.execute("SELECT * FROM login_users WHERE user_name = %s", ("Admin",))
+                admin_row = cursor.fetchone()
+                if admin_row:
+                    current_month = datetime.now().month
+                    current_year = datetime.now().year
+                    expected_password = f"password@{current_month}{current_year}"
+                    if admin_row[2] != expected_password:
+                        cursor.execute("UPDATE login_users SET password = %s WHERE user_name = %s",
+                                       (expected_password, "Admin"))
+                        conn.commit()
+
             # Close the cursor and connection objects
-            # This is important to free up system resources and prevent memory leaks
             cursor.close()
             conn.close()
+
         except mysql.connector.Error as err:
             # Show an error messagebox if the connection to the server fails
             root = tk.Tk()
@@ -454,8 +470,8 @@ class Logistics:
         buttonFrame = Frame(login_window, width=200, height=100, bd=4, relief='ridge')
         buttonFrame.grid(row=4, column=0)
 
-        # Partial function to pass parameters to validateStaffLogin when Login button is clicked
-        login_result = partial(self.validateStaffLogin, master, userNameText, passwordText, labelLogin, login_window)
+        # Partial function to pass parameters to validateUserLogin when Login button is clicked
+        login_result = partial(self.validateUserLogin, master, userNameText, passwordText, labelLogin, login_window)
 
         # Login button - Triggers the authentication process
         submit = Button(buttonFrame, text="Login", fg="Black", command=login_result,
@@ -497,13 +513,12 @@ class Logistics:
         # Ensure the login window stays on top of all other windows
         login_window.attributes('-topmost', 1)
 
-    def validateStaffLogin(self,master, userNameText, passwordText, labelLogin, login_window):
+    def validateUserLogin(self, master, userNameText, passwordText, labelLogin, login_window):
         """
         Function to validate staff login credentials.
 
-        This function checks if the entered username and password match any records
-        in the "Users.xlsx" file. If valid, it proceeds to the main application screen;
-        otherwise, it displays a login failure message and resets the login form.
+        This function checks if the entered username and password match any records in the 'login_users' table.
+        If valid, it proceeds to the main application screen; otherwise, it displays a login failure message and resets the login form.
 
         Parameters:
         master (tk.Tk or tk.Toplevel): The main application window.
@@ -513,8 +528,8 @@ class Logistics:
         login_window (tk.Toplevel): The login window, which will be closed upon successful login.
         """
 
-        # Define the file path of the Excel sheet containing user credentials
-        file_path = "Users.xlsx"
+        # Define the database connection details
+        db_config = serverdb_config
 
         # Initialize login validation flag as False
         bLoginValid = False
@@ -522,59 +537,74 @@ class Logistics:
         # Variable to store the user's category (e.g., "User" or "Admin")
         category = None
 
-        # ------------------------- Step 1: Check if the Users.xlsx file exists ------------------------- #
+        try:
+            # Create a connection to the MySQL database
+            conn = mysql.connector.connect(**db_config)
+            cursor = conn.cursor()
 
-        # Verify if the user credentials file exists before attempting to read it
-        if os.path.exists(file_path):
+            # Use the existing logistic database
+            cursor.execute("USE logistic")
 
-            # Read the Excel file into a pandas DataFrame
-            df = pd.read_excel(file_path)
+            # ------------------------- Step 1: Validate User Credentials ------------------------- #
 
-            # Consider only the necessary columns: 'Username', 'Password', and 'Category'
-            df = df[['Username', 'Password', 'Category']]
+            # Prepare the query to select the user with the given username and password
+            query = "SELECT * FROM login_users WHERE user_name = %s AND password = %s"
 
-            # ------------------------- Step 2: Validate User Credentials ------------------------- #
+            # Execute the query with the given username and password
+            cursor.execute(query, (userNameText.get().strip(), passwordText.get().strip()))
 
-            # Iterate through each row of the DataFrame to check for a matching username and password
-            for index, row in df.iterrows():
+            # Fetch the result
+            row = cursor.fetchone()
 
-                # Check if the entered username and password match any record in the file
-                if row['Username'] == userNameText.get().strip() and row['Password'] == passwordText.get().strip():
-                    bLoginValid = True  # Mark login as valid
-                    category = row['Category']  # Store the user's category (e.g., "User" or "Admin")
-                    break  # Exit loop as soon as a valid match is found
+            # Check if a matching record is found
+            if row:
+                bLoginValid = True  # Mark login as valid
+                category = row[3]  # Store the user's category (e.g., "User" or "Admin")
 
-        # ------------------------- Step 3: Handle Login Success or Failure ------------------------- #
+            # Close the cursor and connection objects
+            cursor.close()
+            conn.close()
 
-        # If login is valid and the user belongs to an allowed category
-        if bLoginValid and category in ["User", "Admin"]:
+            # ------------------------- Step 2: Handle Login Success or Failure ------------------------- #
 
-            # Update the login label to indicate success
-            labelLogin.configure(fg='green')
-            labelLogin['text'] = "Login Success!!"
+            # If login is valid and the user belongs to an allowed category
+            if bLoginValid and category in ["User", "Admin"]:
+                # Update the login label to indicate success
+                labelLogin.configure(fg='green')
+                labelLogin['text'] = "Login Success!!"
 
-            # Print authentication success message to console
-            print("Authentication Success for user:", userNameText.get())
+                # Print authentication success message to console
+                print("Authentication Success for user:", userNameText.get())
 
-            # Retrieve the username from the input field
-            un = userNameText.get()
+                # Retrieve the username from the input field
+                un = userNameText.get()
 
-            # Close the login window
-            login_window.destroy()
+                # Close the login window
+                login_window.destroy()
 
-            # Redirect to the main application screen, passing the username and category
-            self.designMainScreen(master, un, category)
+                # Redirect to the main application screen, passing the username and category
+                self.designMainScreen(master, un, category)
+            else:
+                # Update the login label to indicate failure
+                labelLogin.configure(fg='red')
+                labelLogin['text'] = "Login Failed !! Try Again"
 
-        else:
-            # Update the login label to indicate failure
-            labelLogin.configure(fg='red')
-            labelLogin['text'] = "Login Failed !! Try Again"
+                # Clear the login form to reset the fields
+                self.clear_loginForm(userNameText, passwordText)
 
-            # Clear the login form to reset the fields
-            self.clear_loginForm(userNameText, passwordText)
+                # Set focus back to the password field for easy re-entry
+                passwordText.focus()
 
-            # Set focus back to the password field for easy re-entry
-            passwordText.focus()
+        except mysql.connector.Error as err:
+            # Show an error messagebox if the connection to the server fails
+            root = tk.Tk()
+            root.withdraw()  # Hides the root window
+            response = messagebox.askokcancel("Connection Error",
+                                              "Could not connect to server. Application will close.")
+            if response:
+                root.destroy()
+                sys.exit(1)  # Exit the application with a non-zero status code
+            print(f"Error: {err}")
 
     def clear_loginForm(self,userNameText, passwordText):
         """

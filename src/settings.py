@@ -351,23 +351,20 @@ class SettingsWindow:
 
     def save_user(self):
         """
-        Saves a new user to the 'Users.xlsx' file.
+        Saves a new user to the 'login_users' table in the database.
 
         This function retrieves the username, password, and category entered by the user in the GUI.
-        If all fields are valid, it checks whether the 'Users.xlsx' file exists. If not, it creates a new file.
-        The user details are then appended to the file, ensuring sequential numbering.
+        If all fields are valid, it checks whether the user already exists in the table.
+        If not, it creates a new entry with a unique serial number.
 
         Steps:
         1. Retrieve and sanitize input values.
         2. Validate that all fields are filled.
-        3. Check if 'Users.xlsx' exists:
-           - If not, create a new DataFrame with appropriate columns.
-           - If yes, load existing data.
-        4. Append new user details to the DataFrame.
-        5. Save the updated DataFrame back to 'Users.xlsx'.
+        3. Check if the user already exists in the table.
+        4. If not, create a new entry with a unique serial number.
+        5. Save the new entry to the 'login_users' table.
         6. Display success message and reset input fields.
         7. If validation fails, show a warning message.
-
         """
 
         # Retrieve the username, password, and category from input fields, removing any extra spaces.
@@ -377,34 +374,47 @@ class SettingsWindow:
 
         # Check if all input fields have valid values before proceeding.
         if username and password and category:
-            file_path = "Users.xlsx"  # Define the file path for storing user data.
+            # Define the database connection details
+            db_config = serverdb_config
 
-            # Check if the file exists. If not, create a new DataFrame with appropriate columns.
-            if not os.path.exists(file_path):
-                df = pd.DataFrame(columns=["S.No", "Username", "Password", "Category"])
-            else:
-                # Load the existing Excel file into a DataFrame.
-                df = pd.read_excel(file_path)
+            try:
+                # Create a connection to the MySQL database
+                conn = mysql.connector.connect(**db_config)
+                cursor = conn.cursor()
 
-            # Create a new entry DataFrame with incremented serial number.
-            new_entry = pd.DataFrame([[len(df) + 1, username, password, category]],
-                                     columns=["S.No", "Username", "Password", "Category"])
+                # Use the existing logistic database
+                cursor.execute("USE logistic")
 
-            # Append the new entry to the existing DataFrame.
-            df = pd.concat([df, new_entry], ignore_index=True)
+                # Check if the user already exists in the table
+                query = "SELECT * FROM login_users WHERE user_name = %s"
+                cursor.execute(query, (username,))
+                if cursor.fetchone():
+                    # Show a warning if the user already exists
+                    messagebox.showwarning("Warning", "User already exists!")
+                else:
+                    # Create a new entry with a unique serial number
+                    query = "INSERT INTO login_users (user_name, password, category) VALUES (%s, %s, %s)"
+                    cursor.execute(query, (username, password, category))
+                    conn.commit()
 
-            # Save the updated DataFrame back to 'Users.xlsx' without index numbers.
-            df.to_excel(file_path, index=False)
+                    # Display a success message indicating that the user has been created
+                    messagebox.showinfo("Success", "User Created Successfully")
 
-            # Display a success message indicating that the user has been created.
-            messagebox.showinfo("Success", "User Created Successfully")
+                    # Reset input fields after successfully saving the user
+                    self.entry_username.delete(0, END)  # Clear the username field
+                    self.entry_password.delete(0, END)  # Clear the password field
+                    self.category_var.set("User")  # Reset the category to the default value
 
-            # Reset input fields after successfully saving the user.
-            self.entry_username.delete(0, END)  # Clear the username field.
-            self.entry_password.delete(0, END)  # Clear the password field.
-            self.category_var.set("User")  # Reset the category to the default value.
+                # Close the cursor and connection objects
+                cursor.close()
+                conn.close()
 
-        else:
-            # Show a warning if any field is missing or invalid.
-            messagebox.showwarning("Warning", "Enter valid Username, Password, and select a Category!")
+            except mysql.connector.Error as err:
+                # Show an error messagebox if the connection to the server fails
+                root = tk.Tk()
+                root.withdraw()  # Hides the root window
+                response = messagebox.askokcancel("Connection Error",
+                                                  "Could not connect to server. Application will close.")
+                if response:
+                    root.destroy()
 
