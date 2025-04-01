@@ -110,10 +110,36 @@ database_columns = [
     "TPL_Remarks TEXT"
 ]
 
+column_names = [
+    "Inward_No",
+    "Return_Type",
+    "Benefit_Type",
+    "Date",
+    "Time",
+    "Gate_Entry_No",
+    "Invoice_No",
+    "PO_No",
+    "BOE_No",
+    "Return_Date",
+    "Return_Time",
+    "Supplier",
+    "Material",
+    "Qty",
+    "Department",
+    "Project",
+    "TPL_Name",
+    "Vehicle",
+    "Received",
+    "Authorized",
+    "Security",
+    "Remark",
+    "TPL_Remarks"
+]
+
 serverdb_config = {
     'user': 'forvia',
     'password': 'password@123',
-    'host': '10.228.140.19',
+    'host': '10.170.140.110',
     'port': 3306,
     'database': 'logistic'
 }

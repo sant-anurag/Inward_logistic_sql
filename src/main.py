@@ -98,42 +98,83 @@ class Logistics:
         else:
             return False  # Return False, rejecting the input
 
-    def download_inward_register(self,filetype):
-        onedrive_path = os.path.join(os.environ["USERPROFILE"], "OneDrive - FORVIA")
-        source_folder_path = os.path.join(onedrive_path, "Inward_logistic_master")
+    def download_inward_register(self, filetype):
+        # Database configuration
+        serverdb_config = {
+            'user': 'forvia',
+            'password': 'password@123',
+            'host': '10.170.140.110',
+            'port': 3306,
+            'database': 'logistic'
+        }
+
+        # Define the file name
         if filetype == "master":
             file_name = "Inward Material Register.xlsx"
-        elif filetype =="filterdata":
-            donothing(None)
-        source_path = os.path.join(source_folder_path, file_name)
-
-        print("download_inward_register-> ", source_path)
+        elif filetype == "filterdata":
+            return
 
         # Get user's default download directory
         download_dir = str(Path.home() / "Downloads")
         destination_path = os.path.join(download_dir, file_name)
 
-        if os.path.exists(source_path):
+        try:
+            # Connect to the database
+            connection = mysql.connector.connect(**serverdb_config)
+
+            # Query to fetch data from the table
+            query = "SELECT * FROM inward_logistic"
+
+            # Use pandas to read the data from the database
+            df = pd.read_sql(query, connection)
+
+            # Save the dataframe to an Excel file
+            df.to_excel(destination_path, index=False)
+
+            # Close the database connection
+            connection.close()
+
+            # Load the workbook and worksheet
+            wb = load_workbook(destination_path)
+            ws = wb.active
+
+            # Set font and alignment
+            font = Font(name='Bookman Old Style', size=11)
+            alignment = Alignment(horizontal='center',vertical = 'center', wrap_text=True)
+
+            # Apply formatting to all cells
+            for row in ws.iter_rows():
+                for cell in row:
+                    cell.font = font
+                    cell.alignment = alignment
+
+            # Set column width and wrap text
+            for col in ws.columns:
+                col_letter = col[0].column_letter
+                if col_letter in ['A', 'B','C', 'D','E', 'F','G', 'H','I', 'J','K', 'L']:  # First and second columns
+                    ws.column_dimensions[col_letter].width = 20
+                else:  # All other columns
+                    ws.column_dimensions[col_letter].width = 50
+
+            # Save the formatted workbook
+            wb.save(destination_path)
+
+            messagebox.showinfo("Success", f"'{file_name}' has been downloaded successfully to {download_dir}")
+
+            # Open the Downloads directory in File Explorer
             try:
-                shutil.copy(source_path, destination_path)
-                messagebox.showinfo("Success", f"'{file_name}' has been downloaded successfully to {download_dir}")
-                # Open the Downloads directory in File Explorer
-                # Open the Downloads directory in File Explorer, handle errors
-                try:
-                    subprocess.Popen(["explorer", download_dir], shell=True)
-                except Exception as e:
-                    print(f"Warning: Failed to open Downloads directory: {e}")
-
-                # Open the downloaded Excel file
-                try:
-                    os.startfile(destination_path)  # Works on Windows
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to open the file: {str(e)}")
-
+                subprocess.Popen(["explorer", download_dir], shell=True)
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to download the file: {str(e)}")
-        else:
-            messagebox.showerror("Error", f"'{source_path}' does not exist.")
+                print(f"Warning: Failed to open Downloads directory: {e}")
+
+            # Open the downloaded Excel file
+            try:
+                os.startfile(destination_path)  # Works on Windows
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to open the file: {str(e)}")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to download the file: {str(e)}")
 
     def download_filteredData(self,file_name, status_label):
         source_path = file_name

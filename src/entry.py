@@ -340,6 +340,10 @@ class DataEntryWindow:
             return  # No item selected
 
         record = self.tree.item(selected_item, "values")[1:]
+
+        # Store the first element in a variable
+        serial_no = self.tree.item(selected_item, "values")[0]
+        print("Serial no :  ", serial_no)
         if not record:
             return
         width, height = pyautogui.size()
@@ -404,23 +408,32 @@ class DataEntryWindow:
 
         def save_changes():
             updated_record = [item[1].get() for item in self.view_edit_entries]
-            print(" Updated record count : ",len(updated_record))
-            # Define the file path for the Excel sheet where data will be stored
-            file_name = os.path.join(os.environ["USERPROFILE"], "OneDrive - FORVIA", "Inward_logistic_master",
-                                     "Inward Material Register.xlsx")
-            wb = load_workbook(file_name)
-            ws = wb["Inward Entry"]
+            print("Updated record count:", len(updated_record))
 
-            for row in ws.iter_rows(min_row=2, max_row=ws.max_row, values_only=False):
-                if row[0].value == record[0]:  # Update matching record
-                    for j, cell in enumerate(row):
-                        cell.value = updated_record[j]
-                    break
+            # Connect to the database
+            connection = mysql.connector.connect(**serverdb_config)
+            cursor = connection.cursor()
 
-            wb.save(file_name)
-            wb.close()
+            # SQL query to update the record
+            update_query = """
+            UPDATE inward_logistic
+            SET Inward_No = %s,Return_Type = %s, Benefit_Type = %s, Date = %s, Time = %s, Gate_Entry_No = %s, Invoice_No = %s, PO_No = %s, BOE_No = %s, 
+                Return_Date = %s, Return_Time = %s, Supplier = %s, Material = %s, Qty = %s, Department = %s, Project = %s, 
+                TPL_Name = %s, Vehicle = %s, Received = %s, Authorized = %s, Security = %s, Remark = %s, TPL_Remarks = %s
+            WHERE id = %s
+            """
+
+            # Execute the update query
+            cursor.execute(update_query, (*updated_record, serial_no))
+            connection.commit()
+
+            # Close the database connection
+            cursor.close()
+            connection.close()
+
+            # Update the Treeview and show success message
             self.tree.item(selected_item, values=updated_record)
-            messagebox.showinfo("Success", "Record edited successfully and saved !!!",parent=self.view_edit_window)
+            messagebox.showinfo("Success", "Record edited successfully and saved !!!", parent=self.view_edit_window)
             self.load_last_entries()
 
         edit_button = tk.Button(button_frame, text="Edit", command=enable_edit, bg="light cyan",font=('ariel narrow', 10), width=10)

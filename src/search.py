@@ -22,7 +22,7 @@ class SearchWindow:
         self.filter_rows = []
 
         # Define the available fields (columns) in the dataset that users can filter by
-        self.fields = database_fields
+        self.fields = column_names
 
         # Define the file path of the source Excel file containing data
         self.file_name = os.path.join(
@@ -252,91 +252,103 @@ class SearchWindow:
 
     def search_data(self):
         try:
-            df = pd.read_excel(self.file_name, dtype=str)  # Read everything as string initially
-        except Exception as e:
-            print("Error loading Excel file:", e)
-            return
+            # Connect to the database
+            connection = mysql.connector.connect(**serverdb_config)
+            cursor = connection.cursor()
 
-        for column_var, operator_option, entry_var, _ in self.filter_rows:
-            column = column_var.get()
-            operator = operator_option.get()
-            value = entry_var.get().strip()
-
-            if column and operator and value:
-                try:
-                    # Check if the column contains numeric data
-                    if df[column].str.replace('.', '', 1).str.isdigit().all():
-                        df[column] = pd.to_numeric(df[column],
-                                                   errors='coerce')  # Convert column back to numeric if applicable
-                        value = pd.to_numeric(value, errors='coerce')  # Convert input value to number if possible
-
-                    # Apply filters based on the selected operator
+            # Base query
+            query = "SELECT * FROM inward_logistic WHERE  1=1"
+            print("Initial query : ", query)
+            # Build the query based on filters
+            for column_var, operator_option, entry_var, _ in self.filter_rows:
+                column = column_var.get()
+                operator = operator_option.get()
+                value = entry_var.get().strip()
+                print("Column  : ", column, "operator : ",operator,"value :",value)
+                if column and operator and value:
+                    column = f"`{column}`"  # Enclose column name in backticks
                     if operator == "Equals":
-                        df = df[df[column] == value]
+                        query += f" AND {column} = '{value}'"
                     elif operator == "Not Equals":
-                        df = df[df[column] != value]
+                        query += f" AND {column} != '{value}'"
                     elif operator == "Contains":
-                        safe_value = re.escape(value)  # Escape special characters
-                        df = df[df[column].str.contains(safe_value, na=False, regex=True)]
+                        query += f" AND {column} LIKE '%{value}%'"
                     elif operator == "Not Contains":
-                        safe_value = re.escape(value)
-                        df = df[~df[column].str.contains(safe_value, na=False, regex=True)]
+                        query += f" AND {column} NOT LIKE '%{value}%'"
+
+            # Execute the query
+            print("Final query : ", query)
+            cursor.execute(query)
+            rows = cursor.fetchall()
+
+            # Get column names
+            columns = [desc[0] for desc in cursor.description]
+
+            # Convert to DataFrame
+            df = pd.DataFrame(rows, columns=columns)
+
+            # Close the database connection
+            cursor.close()
+            connection.close()
+
+            # Display record count and save results
+            record_count = len(df)
+            self.status_label.config(
+                text=f"{record_count} records found, Use 'Download' for viewing search results" if record_count else "0 records found",
+                fg="green" if record_count else "red"
+            )
+
+            df.to_excel(self.output_filename, index=False)
+
+            # Load the Excel file for formatting
+            wb = load_workbook(self.output_filename)
+            ws = wb.active
+
+            # Define header styling
+            header_fill = PatternFill(start_color="D9FFFF", end_color="D9FFFF", fill_type="solid")  # Light cyan
+            header_font = Font(name="Bookman Old Style", size=11, bold=True)  # Bold font for headers
+            header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)  # Center align
+
+            # Apply styles to header row
+            for col_num, col_name in enumerate(df.columns, start=1):
+                col_letter = get_column_letter(col_num)
+                cell = ws[f"{col_letter}1"]  # Get header cell
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+
+                # Adjust column width based on column name length
+                ws.column_dimensions[col_letter].width = len(col_name) + 5  # Increase slightly for better fit
+
+            # Apply font style, adjust column width, and wrap text for data rows
+            for col_num, col_cells in enumerate(ws.columns, start=1):
+                max_length = max((len(str(cell.value or "")) for cell in col_cells[1:]),
+                                 default=0)  # Handle empty columns
+                col_letter = get_column_letter(col_num)
+
+                for cell in col_cells[1:]:  # Skip header row
+                    cell.font = Font(name="Bookman Old Style", size=11)
+                    cell.alignment = Alignment(vertical="center",
+                                               wrap_text=len(str(cell.value or "")) > 50)  # Handle None values
+
+                # Adjust column width based on content, capped at 50
+                ws.column_dimensions[col_letter].width = min(
+                    max(max_length + 5, ws.column_dimensions[col_letter].width), 50)
+
+            wb.save(self.output_filename)
+
+            print(f"Filtered data saved to {self.output_filename}")
+
+            if record_count > 0:
+                self.download_button.configure(bg='light cyan', highlightbackground='light cyan', fg='black',
+                                               state=ACTIVE)
+                try:
+                    os.startfile(self.output_filename)  # Works on Windows
                 except Exception as e:
-                    print(f"Error during filtering: {e}")
-                    continue
+                    messagebox.showerror("Error", f"Failed to open the file: {str(e)}")
 
-        # Display record count and save results
-        record_count = len(df)
-        self.status_label.config(
-            text=f"{record_count} records found, Use 'Download' for viewing search results" if record_count else "0 records found",
-            fg="green" if record_count else "red"
-        )
-
-        df.to_excel(self.output_filename, index=False)
-
-        # Load the Excel file for formatting
-        wb = load_workbook(self.output_filename)
-        ws = wb.active
-
-        # Define header styling
-        header_fill = PatternFill(start_color="D9FFFF", end_color="D9FFFF", fill_type="lightUp")  # Light cyan
-        header_font = Font(name="Bookman Old Style", size=11, bold=True)  # Bold font for headers
-        header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)  # Center align
-
-        # Apply styles to header row
-        for col_num, col_name in enumerate(df.columns, start=1):
-            col_letter = get_column_letter(col_num)
-            cell = ws[f"{col_letter}1"]  # Get header cell
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = Alignment(horizontal="center", vertical="center",
-                                       wrap_text=False)  # 🔥 Disable wrap for headers
-
-            # Adjust column width based on column name length
-            ws.column_dimensions[col_letter].width = len(col_name) + 5  # Increase slightly for better fit
-
-        # Apply font style, adjust column width, and wrap text for data rows
-        for col_num, col_cells in enumerate(ws.columns, start=1):
-            max_length = max((len(str(cell.value or "")) for cell in col_cells[1:]), default=0)  # Handle empty columns
-            col_letter = get_column_letter(col_num)
-
-            for cell in col_cells[1:]:  # Skip header row
-                cell.font = Font(name="Bookman Old Style", size=11)
-                cell.alignment = Alignment(vertical="center", wrap_text=len(str(cell.value or "")) > 50)  # Handle None values
-
-            # Adjust column width based on content, capped at 50
-            ws.column_dimensions[col_letter].width = min(max(max_length + 5, ws.column_dimensions[col_letter].width), 50)
-
-        wb.save(self.output_filename)
-
-        print(f"Filtered data saved to {self.output_filename}")
-
-        if record_count > 0:
-            self.download_button.configure(bg='light cyan', highlightbackground='light cyan', fg='black', state=ACTIVE)
-            try:
-                os.startfile(self.output_filename)  # Works on Windows
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to open the file: {str(e)}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to search the database: {str(e)}")
 
     def display_filtered_data(self, df):
         # Remove any existing widgets from the table frame to refresh the data display
