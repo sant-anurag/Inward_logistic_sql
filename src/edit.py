@@ -360,62 +360,6 @@ class EditWindow:
 
         self.view_edit_window.focus()
 
-    def display_filtered_data(self, df):
-        # Remove any existing widgets from the table frame to refresh the data display
-        for widget in self.table_frame.winfo_children():
-            widget.destroy()
-
-        # Create a container frame inside the table_frame to hold the table components
-        container = tk.Frame(self.table_frame)
-        container.pack(fill=tk.BOTH, expand=True)  # Allow it to expand and fill available space
-
-        # Create a canvas inside the container to enable scrolling when the data overflows
-        canvas = tk.Canvas(container, bg='wheat')
-
-        # Create a vertical scrollbar and link it to the canvas for scrolling functionality
-        scrollbar_y = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
-
-        # Create a horizontal scrollbar and link it to the canvas for scrolling functionality
-        scrollbar_x = tk.Scrollbar(self.table_frame, orient="horizontal", command=canvas.xview)
-
-        # Create a frame inside the canvas that will hold the actual table content
-        scrollable_frame = tk.Frame(canvas, bg="wheat")
-
-        # Bind a function to dynamically update the scroll region when the frame size changes
-        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-
-        # Add the scrollable frame inside the canvas window, anchored to the top-left (nw)
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-
-        # Configure the canvas to sync scrolling with the scrollbars
-        canvas.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
-        # Populate the table only if filtered data count is <= 50
-        if len(df) <= 50:
-            # Populate the table with column headers
-            for col_idx, col_name in enumerate(df.columns):
-                tk.Label(scrollable_frame, text=col_name, font=('ariel narrow', 10, 'bold'), bg='wheat') \
-                    .grid(row=0, column=col_idx, padx=5, pady=5)  # Place column headers in the first row
-
-            # Populate the table with data rows
-                # Populate the table with data rows
-                for row_idx, row in df.iterrows():
-                    for col_idx, value in enumerate(row):
-                        display_value = "NA" if (pd.isna(value) or value is None or value == "") else str(value)
-                        tk.Label(scrollable_frame, text=display_value, font=('ariel narrow', 10), bg='wheat') \
-                            .grid(row=row_idx + 1, column=col_idx, padx=5, pady=5)
-
-        # Pack the canvas on the left side, allowing it to expand and fill space
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Pack the vertical scrollbar to the right, allowing vertical scrolling
-        scrollbar_y.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Pack the horizontal scrollbar at the bottom, allowing horizontal scrolling
-        scrollbar_x.pack(side=tk.BOTTOM, fill=tk.X)
-
-        # Ensure the table frame itself expands and fills available space in the GUI
-        self.table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
     def download_filteredData(self):
         source_path = self.output_filename
 

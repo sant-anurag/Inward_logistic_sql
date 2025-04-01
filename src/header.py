@@ -139,7 +139,7 @@ column_names = [
 serverdb_config = {
     'user': 'forvia',
     'password': 'password@123',
-    'host': '10.170.140.110',
+    'host': '192.168.1.7',
     'port': 3306,
     'database': 'logistic'
 }
