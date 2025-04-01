@@ -11,7 +11,7 @@ from tkinter import (
     Tk, Label, Entry, Button, Frame, Text, Scrollbar, Listbox,
     Menu, PhotoImage, filedialog, messagebox, Canvas, constants
 )
-
+import sys
 from tkinter import ttk, messagebox
 import xlsxwriter
 import re
@@ -139,7 +139,7 @@ column_names = [
 serverdb_config = {
     'user': 'forvia',
     'password': 'password@123',
-    'host': '10.228.140.19',
+    'host': '192.168.1.9',
     'port': 3306,
     'database': 'logistic'
 }

@@ -25,9 +25,11 @@ class Logistics:
         The main window is where various GUI components such as labels, buttons, and data displays
         will be placed.
         """
+        self.initialize_user_database()
+        self.initialize_logistic_database()
         self.main_window(master)
 
-    def initialize_database(self):
+    def initialize_logistic_database(self):
         """
         Function to initialize the MySQL database for storing inward logistics data.
         This function ensures that a specific database and table exist.
@@ -39,29 +41,95 @@ class Logistics:
 
         # Define the columns for the table
         columns = database_columns
+        try:
+            # Create the database connection
+            conn = mysql.connector.connect(**db_config)
+            cursor = conn.cursor()
 
-        # Create the database connection
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor()
+            # Create the database if it does not exist
+            cursor.execute("CREATE DATABASE IF NOT EXISTS logistic")
 
-        # Create the database if it does not exist
-        cursor.execute("CREATE DATABASE IF NOT EXISTS logistic")
+            # Use the created database
+            cursor.execute("USE logistic")
 
-        # Use the created database
-        cursor.execute("USE logistic")
+            # Create the table if it does not exist
+            cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS inward_logistic (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    {', '.join(columns)}
+                )
+            """)
 
-        # Create the table if it does not exist
-        cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS inward_logistic (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                {', '.join(columns)}
-            )
-        """)
+            # Close the database connection
+            cursor.close()
+            conn.close()
+        except mysql.connector.Error as err:
+            # Show an error messagebox if the connection to the server fails
+            root = tk.Tk()
+            root.withdraw()  # Hides the root window
+            if messagebox.showerror("Connection Error", "Could not connect to server"):
+                root.destroy()
+                sys.exit(1)  # Exit the application with a non-zero status code
+            print(f"Error: {err}")
 
-        # Close the database connection
-        cursor.close()
-        conn.close()
+    def initialize_user_database(self):
+        """
+        Function to initialize the user database for storing login credentials.
 
+        This function ensures that a specific table exists within the logistic database.
+        If the table does not exist, it creates a new one with predefined columns.
+        """
+
+        # Define the database connection details
+        # This includes the host, username, password, and database name
+        # We are using the same database configuration as the server database
+        db_config = serverdb_config
+
+        # Define the columns for the login_users table
+        # We have three columns: user_name, password, and category
+        # Each column is defined with a specific data type and length
+        columns = [
+            "user_name VARCHAR(255)",  # Stores the username as a string
+            "password VARCHAR(255)",  # Stores the password as a string
+            "category VARCHAR(255)"  # Stores the user category as a string
+        ]
+        try:
+            # Create a connection to the MySQL database
+            # We use the mysql.connector library to connect to the database
+            # The ** operator is used to unpack the db_config dictionary into keyword arguments
+            conn = mysql.connector.connect(**db_config)
+
+            # Create a cursor object to execute SQL queries
+            # The cursor object allows us to execute SQL queries and retrieve results
+            cursor = conn.cursor()
+
+            # Use the existing logistic database
+            # We execute a SQL query to switch to the logistic database
+            cursor.execute("USE logistic")
+
+            # Create the login_users table if it does not exist
+            # We execute a SQL query to create the table with the specified columns
+            # The CREATE TABLE IF NOT EXISTS statement ensures that the table is created only if it does not exist
+            # The sno column is an auto-incrementing primary key
+            cursor.execute(f""" 
+                CREATE TABLE IF NOT EXISTS login_users (
+                    sno INT AUTO_INCREMENT PRIMARY KEY,  # Auto-incrementing primary key
+                    {', '.join(columns)}  # Join the columns list into a comma-separated string
+                )
+            """)
+
+            # Close the cursor and connection objects
+            # This is important to free up system resources and prevent memory leaks
+            cursor.close()
+            conn.close()
+        except mysql.connector.Error as err:
+            # Show an error messagebox if the connection to the server fails
+            root = tk.Tk()
+            root.withdraw()  # Hides the root window
+            if messagebox.showerror("Connection Error", "Could not connect to server"):
+                root.destroy()
+                sys.exit(1)  # Exit the application with a non-zero status code
+            print(f"Error: {err}")
 
     def data_entry_window(self,master):
         obj_dataEntry = DataEntryWindow(master)
@@ -584,11 +652,6 @@ class Logistics:
 
         # Pack the canvas into the root window to make it visible
         canvas.pack()
-
-        # ---------------- Initialize Database and Launch Login Window ---------------- #
-
-        # Call the function to initialize the database (assumed to be defined elsewhere)
-        self.initialize_database()
 
         # Call the function to display the login window, passing the root window as a parameter
         self.login_window(root)
