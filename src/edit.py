@@ -8,6 +8,8 @@ class EditWindow:
         :param master: The parent Tkinter window or frame where the edit window will be attached.
         :param download_callback: A function to handle downloading the filtered data.
         """
+        self.view_edit_window = None
+        self.tree = None
         self.table_frame = None
         self.edit_window = None
         self.button_frame = None
@@ -23,18 +25,6 @@ class EditWindow:
 
         # Define the available fields (columns) in the dataset that users can filter by
         self.fields = column_names
-
-        # Define the file path of the source Excel file containing data
-        self.file_name = os.path.join(
-            os.path.join(os.environ["USERPROFILE"], "OneDrive - FORVIA"),
-            "Inward_logistic_master", "Inward Material Register.xlsx"
-        )
-
-        # Define the file path where the filtered data will be saved
-        self.output_filename = os.path.join(
-            os.path.join(os.environ["USERPROFILE"], "OneDrive - FORVIA"),
-            "Inward_logistic_master", "Filtered_Inward_Material.xlsx"
-        )
 
         # Call method to create and display the edit window
         self.create_edit_window()
@@ -56,7 +46,7 @@ class EditWindow:
         self.edit_window.title("Search")
 
         # Set window dimensions (600x500) and position it roughly in the center of the screen
-        self.edit_window.geometry(f'600x200+{int(width / 3.2)}+{int(height / 3)}')
+        self.edit_window.geometry(f'600x400+{int(width / 3.2)}+{int(height / 4)}')
 
         # Set background color
         self.edit_window.configure(background='wheat')
@@ -89,10 +79,77 @@ class EditWindow:
         self.filter_frame.pack(padx=10, pady=10, fill=tk.X)  # Filter section
         self.button_frame.pack(pady=10)  # Buttons section
         self.status_label.pack(pady=5)  # Status label
+        self.create_search_tree()
+
+    def create_buttons(self):
+        """
+        Creates and adds buttons to the button frame, providing functionality for editing data,
+        downloading filtered results, and closing the edit window.
+        """
+        # Button to execute the edit based on selected filters
+        edit_button = tk.Button(self.button_frame, text="Search", command=self.search_data,
+                                font=('ariel narrow', 10), width=10, bg='light cyan')
+        edit_button.pack(side=tk.LEFT, padx=10, pady=5)
+
+        # Bind "Enter" key to trigger the edit button
+        self.edit_window.bind("<Return>", lambda event: self.search_data())
+
+        # Button to download the filtered data; calls the download callback function
+        result_download = partial(self.download_filteredData)
+        self.download_button = tk.Button(self.button_frame, text="Download",
+                                         command=result_download,
+                                         font=('ariel narrow', 10), width=10, bg='lightgrey',
+                                         disabledforeground="darkgrey", state=DISABLED)
+        self.download_button.pack(side=tk.LEFT, padx=10, pady=5)
+
+        # Bind "Alt" + "D" to trigger the download
+        self.edit_window.bind("<Alt-Key-d>", lambda event: result_download())
+
+        # Button to close the edit window
+        close_button = tk.Button(self.button_frame, text="Close", command=self.edit_window.destroy,
+                                 font=('ariel narrow', 10), width=10, bg='light cyan')
+        close_button.pack(side=tk.LEFT, padx=10, pady=5)
+
+        # Bind "Escape" key to close the window
+        self.edit_window.bind("<Escape>", lambda event: self.edit_window.destroy())
+        
+    def create_search_tree(self):
+        # Define columns for the table
+        columns = database_fields_load
+
+        self.tree = ttk.Treeview(self.edit_window, columns=columns, show="headings", height=5)
+        # Create a style for the treeview heading with light cyan background
+        style = ttk.Style()
+        style.configure("Treeview.Heading", background="light cyan", font=("Arial", 10, "bold"), anchor="center")
+        self.tree.bind("<Double-1>", self.view_edit_record)  # Double-click to open View/Edit window
+
+        # Define column headings and set their properties
+        for col in columns:
+            self.tree.heading(col, text=col, anchor="center")
+            if col == 1 or col == 2:
+                self.tree.column(col, width=60, anchor="center")
+            else:
+                self.tree.column(col, width=100, anchor="center")
+
+        # Add scrollbars
+        v_scroll = ttk.Scrollbar(self.edit_window, orient="vertical", command=self.tree.yview)
+        h_scroll = ttk.Scrollbar(self.edit_window, orient="horizontal", command=self.tree.xview)
+
+        # Configure the Treeview to use the scrollbars
+        self.tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+
+        # Place tree and scrollbars
+
+        v_scroll.pack(side="right", fill="y")
+        h_scroll.pack(side="bottom", fill="x")
+        self.tree.pack(side="left", fill="both")
+
+        self.edit_window.focus()  # Focus on the new window
+        self.edit_window.grab_set()  # Make the window model
 
     def add_filter_row(self):
         """
-        Adds a new filter row to the filter section of the edit window.
+        Adds a new filter row to the filter section of the search window.
 
         Each filter row consists of:
         - A dropdown to select the column to filter.
@@ -132,139 +189,24 @@ class EditWindow:
                                            state=ACTIVE)
 
             # Modify window geometry to expand by 15 pixels in height
-        self.update_window_size("extend")
+        #self.update_window_size("extend")
 
-    def update_window_size(self,update_type):
-        """
-        Expands/Shrinks the edit window by 30 pixels in height.
-        """
-        print("Calling update_window_size , and requesting :  ",update_type)
-        self.edit_window.update_idletasks()  # Ensure the window is updated before getting its size
-        if update_type == "extend":
-            width, height, x, y = map(int,
-                                      self.edit_window.geometry().split('+')[0].split('x') + self.edit_window.geometry().split(
-                                          '+')[1:])
-            new_height = height + 30  # Increase height by 30 pixels
-            self.edit_window.geometry(f"{width}x{new_height}+{x}+{y}")  # Apply new geometry
-        elif update_type == "shrink":
-            width, height, x, y = map(int,
-                                      self.edit_window.geometry().split('+')[0].split('x') + self.edit_window.geometry().split(
-                                          '+')[1:])
-            new_height = height - 30  # Increase height by 30 pixels
-            self.edit_window.geometry(f"{width}x{new_height}+{x}+{y}")  # Apply new geometry
-        else:
-            donothing()
-        self.edit_window.update_idletasks()  # Ensure the window is updated before getting its size
-
-    def remove_filter_row(self):
-        """
-        Removes the last added filter row, if any, and updates the edit criteria.
-        Ensures that the first row is never deleted and disables the remove button when only one row remains.
-        """
-        if len(self.filter_rows) > 1:  # Ensure at least one row remains
-            last_row = self.filter_rows.pop()  # Remove the last added filter row
-            for widget in last_row:
-                if isinstance(widget, tk.Widget):  # Destroy only Tkinter widget objects
-                    widget.destroy()
-
-            # If only one row remains after deletion, disable the "-" button
-            if len(self.filter_rows) == 1:
-                self.remove_button.configure(bg='lightgrey', disabledforeground="darkgrey", state=DISABLED)
-        self.update_window_size("shrink")
-
-    def download_filteredData(self):
-        source_path = self.output_filename
-
-        print("download_filteredData-> ", source_path)
-
-        # Get user's default download directory
-        download_dir = str(Path.home() / "Downloads")
-        destination_path = os.path.join(download_dir, "Filtered_Inward_Material.xlsx")
-
-        if os.path.exists(source_path):
-            try:
-                shutil.copy(source_path, destination_path)
-                self.status_label.config(text="Success ,please check ""Downloads"" folder!!!", fg="green")
-                # messagebox.showinfo("Success", f"'{file_name}' has been downloaded successfully to {download_dir}")
-                # Open the Downloads directory in File Explorer
-                # Open the Downloads directory in File Explorer, handle errors
-                '''
-                try:
-                    subprocess.Popen(["explorer", download_dir], shell=True)
-                except Exception as e:
-                    print(f"Warning: Failed to open Downloads directory: {e}")
-
-                # Open the downloaded Excel file
-                try:
-                    os.startfile(destination_path)  # Works on Windows
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to open the file: {str(e)}")
-                '''
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to download the file: {str(e)}")
-        else:
-            messagebox.showerror("Error", f"'{source_path}' does not exist.")
-
-    def create_buttons(self):
-        """
-        Creates and adds buttons to the button frame, providing functionality for adding filters, editing data,
-        downloading filtered results, and closing the edit window.
-        """
-        # Button to add a filter row dynamically
-        add_button = tk.Button(self.button_frame, text="+", command=self.add_filter_row,
-                               font=('ariel narrow', 10), width=10, bg='light cyan')
-        add_button.pack(side=tk.LEFT, padx=10, pady=5)
-
-        self.remove_button = tk.Button(self.button_frame, text="-", command=self.remove_filter_row,
-                               font=('ariel narrow', 10), width=10, bg='lightgrey', disabledforeground="darkgrey",state = DISABLED)
-        self.remove_button.pack(side=tk.LEFT, padx=10, pady=5)
-
-        # Button to execute the edit based on selected filters
-        edit_button = tk.Button(self.button_frame, text="Search", command=self.edit_data,
-                                  font=('ariel narrow', 10), width=10, bg='light cyan')
-        edit_button.pack(side=tk.LEFT, padx=10, pady=5)
-
-        # Bind "Enter" key to trigger the edit button
-        self.edit_window.bind("<Return>", lambda event: self.edit_data())
-
-        # Bind "Alt" + "+" to add a filter row
-        self.edit_window.bind("<Alt-Key-plus>", lambda event: self.add_filter_row())
-
-        # Bind "Alt" + "-" to remove a filter row
-        self.edit_window.bind("<Alt-Key-minus>", lambda event: self.remove_filter_row())
-
-        # Button to download the filtered data; calls the download callback function
-        result_download  = partial(self.download_filteredData)
-        self.download_button = tk.Button(self.button_frame, text="Download",
-                                    command=result_download,
-                                    font=('ariel narrow', 10), width=10, bg='lightgrey', disabledforeground="darkgrey",state = DISABLED)
-        self.download_button.pack(side=tk.LEFT, padx=10, pady=5)
-
-        # Bind "Alt" + "D" to trigger the download
-        self.edit_window.bind("<Alt-Key-d>", lambda event: result_download())
-
-        # Button to close the edit window
-        close_button = tk.Button(self.button_frame, text="Close", command=self.edit_window.destroy,
-                                 font=('ariel narrow', 10), width=10, bg='light cyan')
-        close_button.pack(side=tk.LEFT, padx=10, pady=5)
-        # Bind "Escape" key to close the window
-        self.edit_window.bind("<Escape>", lambda event: self.edit_window.destroy())
-
-    def edit_data(self):
+    def search_data(self):
         try:
             # Connect to the database
             connection = mysql.connector.connect(**serverdb_config)
             cursor = connection.cursor()
 
             # Base query
-            query = "SELECT * FROM inward_logistic WHERE  1=1"
-            print("Initial query : ", query)
+            query = "SELECT * FROM inward_logistic WHERE 1=1"
+            print("Initial query:", query)
+
             # Build the query based on filters
             for column_var, operator_option, entry_var, _ in self.filter_rows:
                 column = column_var.get()
                 operator = operator_option.get()
                 value = entry_var.get().strip()
-                print("Column  : ", column, "operator : ",operator,"value :",value)
+                print("Column:", column, "operator:", operator, "value:", value)
                 if column and operator and value:
                     column = f"`{column}`"  # Enclose column name in backticks
                     if operator == "Equals":
@@ -277,78 +219,146 @@ class EditWindow:
                         query += f" AND {column} NOT LIKE '%{value}%'"
 
             # Execute the query
-            print("Final query : ", query)
+            print("Final query:", query)
             cursor.execute(query)
             rows = cursor.fetchall()
 
             # Get column names
             columns = [desc[0] for desc in cursor.description]
 
-            # Convert to DataFrame
-            df = pd.DataFrame(rows, columns=columns)
+            # Clear existing tree view data
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+
+            # Insert new data into tree view
+            for row in rows:
+                self.tree.insert("", "end", values=row)
+
+            # Display record count
+            record_count = len(rows)
+            self.status_label.config(
+                text=f"{record_count} records found" if record_count else "0 records found",
+                fg="green" if record_count else "red"
+            )
 
             # Close the database connection
             cursor.close()
             connection.close()
 
-            # Display record count and save results
-            record_count = len(df)
-            self.status_label.config(
-                text=f"{record_count} records found, Use 'Download' for viewing edit results" if record_count else "0 records found",
-                fg="green" if record_count else "red"
-            )
-
-            df.to_excel(self.output_filename, index=False)
-
-            # Load the Excel file for formatting
-            wb = load_workbook(self.output_filename)
-            ws = wb.active
-
-            # Define header styling
-            header_fill = PatternFill(start_color="D9FFFF", end_color="D9FFFF", fill_type="solid")  # Light cyan
-            header_font = Font(name="Bookman Old Style", size=11, bold=True)  # Bold font for headers
-            header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)  # Center align
-
-            # Apply styles to header row
-            for col_num, col_name in enumerate(df.columns, start=1):
-                col_letter = get_column_letter(col_num)
-                cell = ws[f"{col_letter}1"]  # Get header cell
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = header_alignment
-
-                # Adjust column width based on column name length
-                ws.column_dimensions[col_letter].width = len(col_name) + 5  # Increase slightly for better fit
-
-            # Apply font style, adjust column width, and wrap text for data rows
-            for col_num, col_cells in enumerate(ws.columns, start=1):
-                max_length = max((len(str(cell.value or "")) for cell in col_cells[1:]),
-                                 default=0)  # Handle empty columns
-                col_letter = get_column_letter(col_num)
-
-                for cell in col_cells[1:]:  # Skip header row
-                    cell.font = Font(name="Bookman Old Style", size=11)
-                    cell.alignment = Alignment(vertical="center",
-                                               wrap_text=len(str(cell.value or "")) > 50)  # Handle None values
-
-                # Adjust column width based on content, capped at 50
-                ws.column_dimensions[col_letter].width = min(
-                    max(max_length + 5, ws.column_dimensions[col_letter].width), 50)
-
-            wb.save(self.output_filename)
-
-            print(f"Filtered data saved to {self.output_filename}")
-
-            if record_count > 0:
-                self.download_button.configure(bg='light cyan', highlightbackground='light cyan', fg='black',
-                                               state=ACTIVE)
-                try:
-                    os.startfile(self.output_filename)  # Works on Windows
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to open the file: {str(e)}")
-
         except Exception as e:
             messagebox.showerror("Error", f"Failed to edit the database: {str(e)}")
+            
+    def view_edit_record(self, event):
+        """Opens a new window for viewing and editing a selected record with dropdowns and date pickers."""
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return  # No item selected
+
+        record = self.tree.item(selected_item, "values")[1:]
+
+        # Store the first element in a variable
+        serial_no = self.tree.item(selected_item, "values")[0]
+        print("Serial no :  ", serial_no)
+        if not record:
+            return
+        width, height = pyautogui.size()
+        self.view_edit_window = tk.Toplevel(self.edit_window)
+        self.view_edit_window.title("View/Edit Record")
+        self.view_edit_window.geometry(f'1050x550+{int(width / 3.2)}+{int(height / 3.5)}')
+        self.view_edit_window.configure(background="wheat")
+
+        heading_frame = tk.Frame(self.view_edit_window, bg="wheat")
+        heading_frame.pack(fill="x")
+        heading = tk.Label(heading_frame, text="View/Edit Record", font=("Arial Narrow", 15, "bold"), bg='wheat')
+        heading.pack(pady=10)
+
+        display_frame = tk.Frame(self.view_edit_window, bg="wheat", width=600, height=300, bd=4, relief='ridge')
+        display_frame.pack(pady=10)
+
+        button_frame = tk.Frame(self.view_edit_window, bg="wheat",width=200, height=100, bd=4, relief='ridge')
+        button_frame.pack(pady=10)
+
+        fields = database_fields
+
+        self.view_edit_entries = []
+        dropdown_fields = {"Return Type": ["Non-Returnable", "Returnable"], "Benefit Type": ["Non-Benefit", "Benefit", "None"]}
+
+        num_fields = len(fields)
+        for i, field in enumerate(fields):
+            row, col = divmod(i, 2)  # Distribute fields into two columns
+
+            label = tk.Label(display_frame, text=field, width=20, anchor=tk.W, font=("Bookman Old Style", 10), bg="wheat")
+            label.grid(row=row, column=col * 2, padx=5, pady=5, sticky="w")
+            style = ttk.Style()
+            style.configure("Readonly.TEntry", background="light grey")
+
+            if field in dropdown_fields:
+                var = tk.StringVar(value=record[i])
+                dropdown = ttk.Combobox(display_frame, values=dropdown_fields[field], textvariable=var,
+                                        state="disabled",width=38,font=("Bookman Old Style", 10))
+                dropdown.grid(row=row, column=col * 2 + 1, padx=5, pady=5)
+                self.view_edit_entries.append((field, var, dropdown))
+            elif field == "Date":
+                date_var = tk.StringVar(value=record[i])
+                date_entry = DateEntry(display_frame, textvariable=date_var, state="disabled",width=38,font=("Bookman Old Style", 10))
+                date_entry.grid(row=row, column=col * 2 + 1, padx=5, pady=5)
+                self.view_edit_entries.append((field, date_var, date_entry))
+            else:
+
+                entry = tk.Entry(display_frame, width=40, font=("Bookman Old Style", 10),readonlybackground="light grey")
+                entry.insert(0, record[i])
+                entry.config(state="disabled")
+                entry.grid(row=row, column=col * 2 + 1, padx=5, pady=5)
+                self.view_edit_entries.append((field, entry))
+
+        def enable_edit():
+            # Update the Treeview
+            self.save_button_edit.update_idletasks()
+            self.save_button_edit.configure(state=ACTIVE,bg='light cyan')
+            for item in self.view_edit_entries:
+                if isinstance(item[1], tk.StringVar):
+                    item[2].config(state="readonly")
+                else:
+                    item[1].config(state="normal", bg="snow")
+
+        def save_changes():
+            updated_record = [item[1].get() for item in self.view_edit_entries]
+            print("Updated record count:", len(updated_record))
+
+            # Connect to the database
+            connection = mysql.connector.connect(**serverdb_config)
+            cursor = connection.cursor()
+
+            # SQL query to update the record
+            update_query = """
+            UPDATE inward_logistic
+            SET Inward_No = %s,Return_Type = %s, Benefit_Type = %s, Date = %s, Time = %s, Gate_Entry_No = %s, Invoice_No = %s, PO_No = %s, BOE_No = %s, 
+                Return_Date = %s, Return_Time = %s, Supplier = %s, Material = %s, Qty = %s, Department = %s, Project = %s, 
+                TPL_Name = %s, Vehicle = %s, Received = %s, Authorized = %s, Security = %s, Remark = %s, TPL_Remarks = %s
+            WHERE id = %s
+            """
+
+            # Execute the update query
+            cursor.execute(update_query, (*updated_record, serial_no))
+            connection.commit()
+
+            # Close the database connection
+            cursor.close()
+            connection.close()
+
+            # Update the Treeview and show success message
+            self.tree.item(selected_item, values=updated_record)
+            messagebox.showinfo("Success", "Record edited successfully and saved !!!", parent=self.view_edit_window)
+            #self.load_last_entries()
+
+        edit_button = tk.Button(button_frame, text="Edit", command=enable_edit, bg="light cyan",font=('ariel narrow', 10), width=10)
+        edit_button.pack(side="left", padx=5)
+        self.save_button_edit = tk.Button(button_frame, text="Save", command=save_changes, bg="grey",font=('ariel narrow', 10), width=10,state=DISABLED)
+        self.save_button_edit.pack(side="left", padx=5)
+        close_button = tk.Button(button_frame, text="Close", command=self.view_edit_window.destroy, bg="light cyan",font=('ariel narrow', 10), width=10)
+        close_button.pack(side="left", padx=5)
+
+        self.view_edit_window.focus()
 
     def display_filtered_data(self, df):
         # Remove any existing widgets from the table frame to refresh the data display
@@ -405,4 +415,37 @@ class EditWindow:
 
         # Ensure the table frame itself expands and fills available space in the GUI
         self.table_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    def download_filteredData(self):
+        source_path = self.output_filename
+
+        print("download_filteredData-> ", source_path)
+
+        # Get user's default download directory
+        download_dir = str(Path.home() / "Downloads")
+        destination_path = os.path.join(download_dir, "Filtered_Inward_Material.xlsx")
+
+        if os.path.exists(source_path):
+            try:
+                shutil.copy(source_path, destination_path)
+                self.status_label.config(text="Success ,please check ""Downloads"" folder!!!", fg="green")
+                # messagebox.showinfo("Success", f"'{file_name}' has been downloaded successfully to {download_dir}")
+                # Open the Downloads directory in File Explorer
+                # Open the Downloads directory in File Explorer, handle errors
+                '''
+                try:
+                    subprocess.Popen(["explorer", download_dir], shell=True)
+                except Exception as e:
+                    print(f"Warning: Failed to open Downloads directory: {e}")
+
+                # Open the downloaded Excel file
+                try:
+                    os.startfile(destination_path)  # Works on Windows
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to open the file: {str(e)}")
+                '''
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to download the file: {str(e)}")
+        else:
+            messagebox.showerror("Error", f"'{source_path}' does not exist.")
 

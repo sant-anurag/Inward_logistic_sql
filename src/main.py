@@ -73,7 +73,7 @@ class Logistics:
         obj_settings = SettingsWindow(master)
 
     def edit_window(self,master):
-        obj_edit = EditWindow(master)
+        obj_edit = EditWindow(master,None)
 
     def validate_numeric_input(self,input_str):
         """
@@ -255,7 +255,7 @@ class Logistics:
 
         if category == "Admin":
             # Create and configure the "Edit" button for Admin users only
-            btn_edit = Button(master, text="Edit", fg="Black", command=lambda: self.edit_window(master),
+            btn_edit = Button(master, text="Edit Record", fg="Black", command=lambda: self.edit_window(master),
                               font=XL_FONT, width=20, state=NORMAL, bg='RosyBrown1')
 
             # Create and configure the "Settings" button for Admin users only
