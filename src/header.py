@@ -74,8 +74,8 @@ database_columns = ("Inward No", "Return Type", "Benefit Type", "Date", "Time", 
                    "Project", "TPL Name","Vehicle", "Received", "Authorized", "Security", "Remark", "TPL Remarks")
 
 database_fields = [
-            "Inward No", "Return Type", "Benefit Type", "Date", "Time", "Gate Entry No", "Invoice No", "PO No",
-            "BOE No", "Return Date", "Return Time","Name of the Supplier", "Material Description", "Qty", "Department", "Project_Name", "TPL_Name","Vehicle No",
+            "Inward No", "Return Type", "Benefit Type", "Date", "Time", "Gate Entry No", "Invoice No *", "PO No",
+            "BOE No", "Return Date", "Return Time","Name of the Supplier", "Material Description", "Quantity *", "Department", "Project_Name", "TPL_Name","Vehicle No",
             "Received Name", "Authorized Sign", "Security Sign", "Remark","TPL Remarks"
         ]
 

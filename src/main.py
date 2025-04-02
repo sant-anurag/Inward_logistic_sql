@@ -28,6 +28,7 @@ class Logistics:
         self.initialize_user_database()
         self.initialize_logistic_database()
         self.initialize_projects_table()
+        print("Database initialization finished")
         self.main_window(master)
 
     def initialize_logistic_database(self):
