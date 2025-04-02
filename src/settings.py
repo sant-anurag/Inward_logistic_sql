@@ -140,7 +140,7 @@ class SettingsWindow:
 
     def save_project(self):
         """
-        This method saves the entered project name to a file and updates the project list.
+        This method saves the entered project name to the 'projects' table in the database.
         It also provides feedback to the user based on whether the input is valid.
         """
 
@@ -149,27 +149,71 @@ class SettingsWindow:
 
         # Checks if the user has entered a non-empty project name.
         if project_name:
-            # Opens the file 'projects.txt' in append mode ('a'), meaning new entries are added without overwriting existing data.
-            with open("projects.txt", "a") as file:
-                # Writes the project name to the file, followed by a newline to separate entries.
-                file.write(project_name + "\n")
+            # Define the database connection details
+            db_config = serverdb_config  # Imported from serverdb_config
 
-            # Displays a success message to inform the user that the project was added successfully.
-            messagebox.showinfo("Success", "Project Added Successfully")
+            try:
+                # Create a connection to the MySQL database using the defined configuration.
+                conn = mysql.connector.connect(**db_config)
 
-            # Clears the project name entry field after saving the project.
-            self.entry_project_name.delete(0, END)
+                # Create a cursor object to execute SQL queries.
+                cursor = conn.cursor()
 
-            # Calls a method to reload and update the project list, ensuring the new entry appears in the UI.
-            self.load_projects()
+                # Use the existing logistic database for this operation.
+                cursor.execute("USE logistic")
+
+                # Check if the project already exists in the 'projects' table.
+                # This query selects all rows where the project_name matches the input.
+                query = "SELECT * FROM projects WHERE project_name = %s"
+                cursor.execute(query, (project_name,))
+
+                # Fetch the result of the query execution.
+                # If a project with the same name already exists, fetchone() will return a row.
+                if cursor.fetchone():
+                    # Show a warning if the project already exists.
+                    messagebox.showwarning("Warning", "Project already exists!")
+                else:
+                    # Create a new entry with a unique serial number and TPL name as None.
+                    # This query inserts a new row into the 'projects' table with the provided project_name and tpl_name.
+                    query = "INSERT INTO projects (project_name, tpl_name) VALUES (%s, %s)"
+                    cursor.execute(query, (project_name, None))
+
+                    # Commit the changes to the database to persist the new entry.
+                    conn.commit()
+
+                    # Displays a success message to inform the user that the project was added successfully.
+                    messagebox.showinfo("Success", "Project Added Successfully")
+
+                    # Clears the project name entry field after saving the project.
+                    self.entry_project_name.delete(0, END)
+
+                    # Calls a method to reload and update the project list, ensuring the new entry appears in the UI.
+                    self.load_projects()
+
+                # Close the cursor and connection objects to free up resources.
+                cursor.close()
+                conn.close()
+
+            except mysql.connector.Error as err:
+                # Handle any errors that occur during database operations.
+                # Show an error messagebox if the connection to the server fails.
+                root = tk.Tk()
+                root.withdraw()  # Hides the root window
+                response = messagebox.askokcancel("Connection Error",
+                                                  "Could not connect to server. Application will close.")
+                if response:
+                    root.destroy()
+                    sys.exit(1)  # Exit the application with a non-zero status code
+                print(f"Error: {err}")
+
         else:
             # Displays a warning message if the input field is empty or contains only spaces.
             messagebox.showwarning("Warning", "Enter a valid project name!")
 
     def modify_project(self):
         """
-        This method modifies an existing project name in the 'projects.txt' file.
-        It ensures that a project is selected and a new name is provided before updating the file.
+        This method modifies an existing project name in the 'projects' table.
+        It ensures that a project is selected and a new name is provided before updating the table.
         """
 
         # Retrieves the currently selected project name from the dropdown and removes leading/trailing whitespace.
@@ -179,7 +223,7 @@ class SettingsWindow:
         new_project_name = self.entry_modify_project.get().strip()
 
         # Prints the selected project and new project name to the console for debugging purposes.
-        print("Selected Project : ", selected_project, "  New name : ", new_project_name)
+        print("Selected Project : ", selected_project, " New name : ", new_project_name)
 
         # If no project is selected, show a warning and exit the function early.
         if not selected_project:
@@ -191,34 +235,52 @@ class SettingsWindow:
             messagebox.showwarning("Warning", "Enter a new project name!")
             return
 
-        # Open 'projects.txt' in read mode and read all lines into a list.
-        with open("projects.txt", "r") as file:
-            projects = file.read().splitlines()  # Reads all lines and removes trailing newline characters.
+        # Define the database connection details
+        db_config = serverdb_config
 
-        # Check if the selected project exists in the file.
-        if selected_project in projects:
-            # Create a new list where the selected project name is replaced with the new name.
-            updated_projects = [new_project_name if project == selected_project else project for project in projects]
+        try:
+            # Create a connection to the MySQL database
+            conn = mysql.connector.connect(**db_config)
+            cursor = conn.cursor()
 
-            # Open 'projects.txt' in write mode to overwrite it with updated project names.
-            with open("projects.txt", "w") as file:
-                file.write("\n".join(updated_projects) + "\n")  # Write the updated project list back to the file.
+            # Use the existing logistic database
+            cursor.execute("USE logistic")
 
-            # Show a success message to indicate that the project was modified.
-            messagebox.showinfo("Success", "Project Modified Successfully")
+            # Check if the selected project exists in the table.
+            query = "SELECT * FROM projects WHERE project_name = %s"
+            cursor.execute(query, (selected_project,))
+            if cursor.fetchone():
+                # Update the project name in the 'projects' table.
+                query = "UPDATE projects SET project_name = %s WHERE project_name = %s"
+                cursor.execute(query, (new_project_name, selected_project))
+                conn.commit()
 
-            # Clear the project name entry field after modification.
-            self.entry_project_name.delete(0, END)
+                # Show a success message to indicate that the project was modified.
+                messagebox.showinfo("Success", "Project Modified Successfully")
 
-            # Reload the project list to reflect the changes in the dropdown.
-            self.load_projects()
+                # Clear the project name entry field after modification.
+                self.entry_modify_project.delete(0, END)
 
-            # If there are still projects in the list, set the first one as the default selection.
-            if updated_projects:
-                self.project_dropdown.set(updated_projects[0])
-        else:
-            # Show a warning message if the selected project is not found in the file.
-            messagebox.showwarning("Warning", "Selected project not found!")
+                # Reload the project list to reflect the changes in the dropdown.
+                self.load_projects()
+            else:
+                # Show a warning message if the selected project is not found in the table.
+                messagebox.showwarning("Warning", "Selected project not found!")
+
+            # Close the cursor and connection objects
+            cursor.close()
+            conn.close()
+
+        except mysql.connector.Error as err:
+            # Show an error messagebox if the connection to the server fails
+            root = tk.Tk()
+            root.withdraw()  # Hides the root window
+            response = messagebox.askokcancel("Connection Error",
+                                              "Could not connect to server. Application will close.")
+            if response:
+                root.destroy()
+                sys.exit(1)  # Exit the application with a non-zero status code
+            print(f"Error: {err}")
 
     def reset_project(self):
         """

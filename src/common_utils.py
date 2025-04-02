@@ -25,12 +25,48 @@ def donothing(event=None):
     print("Button is disabled")
     pass
 
+
 def get_project_names():
+    """
+    Retrieves a list of project names from the 'projects' table in the database.
+
+    Returns:
+    list: A list of project names.
+    """
+
+    # Define the database connection details
+    db_config = serverdb_config
+
     try:
-        with open("projects.txt", "r") as file:
-            projects = [line.strip() for line in file if line.strip()]
+        # Create a connection to the MySQL database
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
+
+        # Use the existing logistic database
+        cursor.execute("USE logistic")
+
+        # Query to select all project names from the 'projects' table
+        query = "SELECT project_name FROM projects"
+        cursor.execute(query)
+
+        # Fetch all project names from the query result
+        projects = [row[0] for row in cursor.fetchall()]
+
+        # Close the cursor and connection objects
+        cursor.close()
+        conn.close()
+
         return projects
-    except FileNotFoundError:
+    except mysql.connector.Error as err:
+        # Show an error messagebox if the connection to the server fails
+        root = tk.Tk()
+        root.withdraw()  # Hides the root window
+        response = messagebox.askokcancel("Connection Error",
+                                          "Could not connect to server. Please check your connection.")
+        if response:
+            root.destroy()
+            sys.exit(1)  # Exit the application with a non-zero status code
+        print(f"Error: {err}")
         return []
 
 
