@@ -2,6 +2,7 @@ from common_utils import *
 
 class SettingsWindow:
     def __init__(self, parent):
+        self.modify_window = None
         self.parent = parent
         self.settings_window = tk.Toplevel()
         self.width, self.height = pyautogui.size()
@@ -30,23 +31,37 @@ class SettingsWindow:
     def create_project(self):
         self.project_window = tk.Toplevel(self.settings_window)
         self.project_window.title("Create Project")
-        self.project_window.geometry('400x200')
+        self.project_window.geometry('{}x{}+{}+{}'.format(480, 120, int(self.width / 2.6), int(self.height / 3)))
         self.project_window.configure(bg='wheat')
 
-        lbl_add_project = tk.Label(self.project_window, text="Add Project:", font=('ariel narrow', 12), bg='wheat')
+        lbl_add_project = tk.Label(self.project_window, text="New Project Name:", font=('ariel narrow', 12), bg='wheat')
         lbl_add_project.grid(row=0, column=0, padx=5, pady=5, sticky="w")
 
-        self.entry_project_name = tk.Entry(self.project_window, width=43, font=('ariel narrow', 10), bg='light yellow')
+        self.entry_project_name = tk.Entry(self.project_window, width=35, font=('ariel narrow', 10), bg='light yellow')
         self.entry_project_name.grid(row=0, column=1, padx=5, pady=5, sticky="we")
 
-        btn_save_project = tk.Button(self.project_window, text="Save", command=self.save_project,
+        # Create a frame for the buttons
+        button_frame = tk.Frame(self.project_window, width=200, height=100, bd=4, relief='ridge', bg='wheat')
+        button_frame.grid(row=1, column=0, columnspan=2, pady=20)
+
+        # Add buttons to the button frame
+        btn_save_project = tk.Button(button_frame, text="Save", command=self.save_project,
                                      font=('ariel narrow', 10), width=10, bg='light cyan')
-        btn_save_project.grid(row=1, column=0, padx=5, pady=5)
+        btn_save_project.grid(row=0, column=0, padx=5, pady=5)
+
+        btn_close_project = tk.Button(button_frame, text="Close", command=self.project_window.destroy,
+                                      font=('ariel narrow', 10), width=10, bg='light cyan')
+        btn_close_project.grid(row=0, column=1, padx=5, pady=5)
+
+        # Center the button frame in the window
+        #self.project_window.grid_rowconfigure(1, weight=1)
+        self.project_window.grid_columnconfigure(0, weight=1)
+        self.project_window.grid_columnconfigure(1, weight=1)
 
     def modify_project(self):
         self.modify_window = tk.Toplevel(self.settings_window)
         self.modify_window.title("Modify Project")
-        self.modify_window.geometry('400x200')
+        self.modify_window.geometry('{}x{}+{}+{}'.format(480, 135, int(self.width / 2.6), int(self.height / 3)))
         self.modify_window.configure(bg='wheat')
 
         lbl_modify_project = tk.Label(self.modify_window, text="Modify Project:", font=('ariel narrow', 12), bg='wheat')
@@ -61,15 +76,29 @@ class SettingsWindow:
         self.entry_modify_project = tk.Entry(self.modify_window, width=40, font=('ariel narrow', 10), bg='light yellow')
         self.entry_modify_project.grid(row=1, column=1, padx=5, pady=5, sticky="we")
 
-        btn_modify_project = tk.Button(self.modify_window, text="Modify", command=self.update_project,
-                                       font=('ariel narrow', 10), width=10, bg='light cyan')
-        btn_modify_project.grid(row=2, column=0, padx=5, pady=5)
+        # Create a frame for the buttons
+        button_frame = tk.Frame(self.modify_window, width=200, height=100, bd=4, relief='ridge', bg='wheat')
+        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
+
+        # Add buttons to the button frame
+        btn_modify_project = tk.Button(button_frame, text="Save", command=self.update_project,
+                                     font=('ariel narrow', 10), width=10, bg='light cyan')
+        btn_modify_project.grid(row=0, column=0, padx=5, pady=5)
+
+        btn_close_project = tk.Button(button_frame, text="Close", command=self.modify_window.destroy,
+                                      font=('ariel narrow', 10), width=10, bg='light cyan')
+        btn_close_project.grid(row=0, column=1, padx=5, pady=5)
+
+        # Center the button frame in the window
+        # self.modify_window.grid_rowconfigure(1, weight=1)
+        self.modify_window.grid_columnconfigure(0, weight=1)
+        self.modify_window.grid_columnconfigure(1, weight=1)
 
 
     def create_user(self):
         self.user_window = tk.Toplevel(self.settings_window)
         self.user_window.title("Create User")
-        self.user_window.geometry('400x250')
+        self.user_window.geometry('{}x{}+{}+{}'.format(400, 250, int(self.width / 2.6), int(self.height / 3)))
         self.user_window.configure(bg='wheat')
 
         lbl_username = tk.Label(self.user_window, text="Username:", font=('ariel narrow', 12), bg='wheat')
@@ -101,7 +130,7 @@ class SettingsWindow:
     def change_password(self):
         self.password_window = tk.Toplevel(self.settings_window)
         self.password_window.title("Change Password")
-        self.password_window.geometry('400x200')
+        self.password_window.geometry('{}x{}+{}+{}'.format(400, 200, int(self.width / 2.6), int(self.height / 3)))
         self.password_window.configure(bg='wheat')
 
         lbl_username = tk.Label(self.password_window, text="Username:", font=('ariel narrow', 12), bg='wheat')
